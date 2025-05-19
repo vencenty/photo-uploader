@@ -458,7 +458,7 @@ const PhotoUploader = ({
                     size={isMobile ? "small" : "middle"}
                     style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
                   >
-                    {isMobile ? '' : '预览'}
+          
                   </Button>
                   <Button 
                     type="text" 
@@ -467,7 +467,7 @@ const PhotoUploader = ({
                     size={isMobile ? "small" : "middle"}
                     style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
                   >
-                    {isMobile ? '' : '裁剪'}
+             
                   </Button>
                   <Button 
                     type="text" 
@@ -477,7 +477,7 @@ const PhotoUploader = ({
                     size={isMobile ? "small" : "middle"}
                     style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
                   >
-                    {isMobile ? '' : '删除'}
+                  
                   </Button>
                 </div>
               </Card>
