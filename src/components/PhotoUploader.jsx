@@ -118,10 +118,10 @@ const PhotoUploader = ({
         const newPhoto = {
           id: Math.random().toString(36).substr(2, 9),
           name: file.name,
-          // 显示用的URL
-          url: photoUrl,
+          // 显示用的URL（使用代理URL）
+          url: uploadConfig.imageProxyUrl + photoUrl,
           status: 'done',
-          // 提交时使用的URL
+          // 提交时使用的URL（原始URL）
           serverUrl: photoUrl,
           // 添加压缩标记
           compressed: needCompression,
@@ -239,9 +239,9 @@ const PhotoUploader = ({
   };
   
   // 预览照片
-  const handlePreview = (photoUrl) => {
-    // 在新窗口打开图片
-    window.open(photoUrl, '_blank');
+  const handlePreview = (photo) => {
+    // 使用原始URL在新窗口打开图片，而不是代理URL
+    window.open(photo.serverUrl, '_blank');
   };
   
   // 打开裁剪对话框
@@ -279,7 +279,7 @@ const PhotoUploader = ({
           if (photoIndex !== -1) {
             updatedPhotos[photoIndex] = {
               ...updatedPhotos[photoIndex],
-              url: photoUrl,
+              url: uploadConfig.imageProxyUrl + photoUrl,
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,
@@ -454,7 +454,7 @@ const PhotoUploader = ({
                   <Button 
                     type="text" 
                     icon={<PictureOutlined />} 
-                    onClick={() => handlePreview(photo.url)}
+                    onClick={() => handlePreview(photo)}
                     size={isMobile ? "small" : "middle"}
                     style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
                   >
@@ -489,7 +489,7 @@ const PhotoUploader = ({
       {/* 裁剪组件 */}
       {currentPhoto && (
         <ImageCropper
-          image={currentPhoto.url}
+          image={currentPhoto.serverUrl}
           visible={cropperVisible}
           onClose={() => setCropperVisible(false)}
           onCropComplete={handleCropComplete}

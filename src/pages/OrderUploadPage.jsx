@@ -124,7 +124,7 @@ function OrderUploadPage() {
                   newSizePhotos[item.spec] = item.urls.map(url => ({
                     id: Math.random().toString(36).substr(2, 9),
                     name: url.split('/').pop() || '照片',
-                    url: url,
+                    url: uploadConfig.imageProxyUrl + url,
                     serverUrl: url,
                     status: 'done'
                   }));
