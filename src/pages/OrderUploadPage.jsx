@@ -212,39 +212,23 @@ function OrderUploadPage() {
     }
   };
 
-  // 删除照片
+  // 删除照片 - 重写逻辑
   const handleDeletePhoto = (size, photoId) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除这张照片吗？',
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => {
-        setSizePhotos(prev => ({
-          ...prev,
-          [size]: prev[size].filter(photo => photo.id !== photoId)
-        }));
-        message.success('照片已删除');
-      }
+    // 直接删除照片，不使用Modal确认
+    setSizePhotos(prev => {
+      const updatedPhotos = {
+        ...prev,
+        [size]: prev[size].filter(photo => photo.id !== photoId)
+      };
+      message.success('照片已删除');
+      return updatedPhotos;
     });
   };
 
-  // 预览照片
-  const handlePreview = (photo) => {
-    Modal.info({
-      title: photo.name,
-      width: 700,
-      content: (
-        <div style={{ textAlign: 'center' }}>
-          <img 
-            alt={photo.name} 
-            src={photo.url} 
-            style={{ maxWidth: '100%', maxHeight: '500px' }} 
-          />
-        </div>
-      ),
-      okText: '关闭'
-    });
+  // 预览照片 - 在新窗口打开
+  const handlePreview = (photoUrl) => {
+    // 在新窗口打开图片
+    window.open(photoUrl, '_blank');
   };
 
   // 提交订单前验证
@@ -447,17 +431,30 @@ function OrderUploadPage() {
                               alt={photo.name}
                               src={photo.url}
                               style={{ height: 120, objectFit: 'cover' }}
-                              onClick={() => handlePreview(photo)}
                             />
                           }
-                          actions={[
-                            <DeleteOutlined key="delete" onClick={() => handleDeletePhoto(size, photo.id)} />
-                          ]}
                           bodyStyle={{ padding: '8px', textAlign: 'center' }}
                         >
                           <Card.Meta description={
                             <Text ellipsis style={{ fontSize: 12 }}>{photo.name}</Text>
                           } />
+                          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '8px' }}>
+                            <Button 
+                              type="text" 
+                              icon={<PictureOutlined />} 
+                              onClick={() => handlePreview(photo.url)}
+                            >
+                              预览
+                            </Button>
+                            <Button 
+                              type="text" 
+                              danger
+                              icon={<DeleteOutlined />} 
+                              onClick={() => handleDeletePhoto(size, photo.id)}
+                            >
+                              删除
+                            </Button>
+                          </div>
                         </Card>
                       </Col>
                     ))}
