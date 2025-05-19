@@ -9,6 +9,7 @@ import {
   UploadOutlined, DeleteOutlined, SaveOutlined, 
   PictureOutlined, InfoCircleOutlined 
 } from '@ant-design/icons';
+import { getOrderInfo, uploadPhoto, submitOrder } from '../services/api';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -63,37 +64,78 @@ function OrderUploadPage() {
     setTotalPhotos(total);
   }, [sizePhotos]);
 
-  // 查询订单信息（实际项目中需要从API获取）
+  // 查询订单信息（从API获取）
   useEffect(() => {
     const fetchOrderInfo = async () => {
       if (!orderSnFromQuery) return;
       
       setLoadingData(true);
       try {
-        // 这里模拟API调用
-        // const response = await fetch(`/api/order/info?order_sn=${orderSnFromQuery}`);
-        // const data = await response.json();
+        // 调用API获取订单信息
+        const response = await getOrderInfo(orderSnFromQuery);
+        console.log('订单查询结果:', response);
         
-        // 模拟网络延迟
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // 如果查询到数据，设置到表单
-        form.setFieldsValue({
-          order_sn: orderSnFromQuery,
-          receiver: '',
-          remark: ''
-        });
-        
-        setOrderInfo({
-          order_sn: orderSnFromQuery,
-          receiver: '',
-          remark: ''
-        });
-        
-        message.success('订单信息加载成功');
+        if (response.code === 0) {
+          // 设置默认值
+          const formData = {
+            order_sn: orderSnFromQuery,
+            receiver: '',
+            remark: ''
+          };
+          
+          // 如果查询到数据，使用返回的数据
+          if (response.data) {
+            // 根据API返回的数据结构提取所需信息
+            formData.receiver = response.data.receiver || '';
+            formData.remark = response.data.remark || '';
+            
+            // 如果有照片数据，设置选中的尺寸和照片
+            if (response.data.photos && Array.isArray(response.data.photos)) {
+              const newSizePhotos = {};
+              const newSelectedSizes = [];
+              
+              // 处理每种规格的照片
+              response.data.photos.forEach(item => {
+                if (item.spec && Array.isArray(item.urls) && item.urls.length > 0) {
+                  // 添加到选中的尺寸
+                  newSelectedSizes.push(item.spec);
+                  
+                  // 创建照片对象数组
+                  newSizePhotos[item.spec] = item.urls.map(url => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    name: url.split('/').pop() || '照片',
+                    url: url,
+                    serverUrl: url,
+                    status: 'done'
+                  }));
+                }
+              });
+              
+              // 更新状态
+              setSelectedSizes(newSelectedSizes);
+              setSizePhotos(newSizePhotos);
+            }
+            
+            message.success('订单信息加载成功');
+          } else {
+            message.info('未查询到订单信息，将创建新订单');
+          }
+          
+          // 设置到表单
+          form.setFieldsValue(formData);
+          setOrderInfo(formData);
+        } else {
+          message.warning(response.msg || '获取订单信息失败');
+          // 仍然设置订单号
+          form.setFieldsValue({ order_sn: orderSnFromQuery });
+          setOrderInfo({ order_sn: orderSnFromQuery, receiver: '', remark: '' });
+        }
       } catch (error) {
         console.error('获取订单信息失败:', error);
         message.error('获取订单信息失败，请稍后重试');
+        // 出错时仍然设置订单号
+        form.setFieldsValue({ order_sn: orderSnFromQuery });
+        setOrderInfo({ order_sn: orderSnFromQuery, receiver: '', remark: '' });
       } finally {
         setLoadingData(false);
       }
@@ -127,30 +169,45 @@ function OrderUploadPage() {
 
   // 处理照片上传的自定义操作
   const customRequest = (size) => async (options) => {
-    const { file, onSuccess, onError } = options;
+    const { file, onSuccess, onError, onProgress } = options;
     
     try {
-      // 这里只是模拟上传，实际项目中需要调用API上传
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 调用API上传照片
+      onProgress({ percent: 30 });
+      const response = await uploadPhoto(file);
+      onProgress({ percent: 100 });
       
-      const newPhoto = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        url: URL.createObjectURL(file),
-        status: 'done',
-        originFileObj: file
-      };
-      
-      setSizePhotos(prev => ({
-        ...prev,
-        [size]: [...(prev[size] || []), newPhoto]
-      }));
-      
-      onSuccess();
+      // 检查API响应是否成功
+      if (response.code === 0 && response.data) {
+        // 根据接口文档获取图片URL
+        const photoUrl = response.data.url || response.data;
+        
+        // 创建照片对象
+        const newPhoto = {
+          id: Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          // 显示用的URL
+          url: photoUrl,
+          status: 'done',
+          // 提交时使用的URL
+          serverUrl: photoUrl
+        };
+        
+        // 添加到状态
+        setSizePhotos(prev => ({
+          ...prev,
+          [size]: [...(prev[size] || []), newPhoto]
+        }));
+        
+        message.success(`${file.name} 上传成功`);
+        onSuccess();
+      } else {
+        message.error(response.msg || `${file.name} 上传失败`);
+        onError();
+      }
     } catch (error) {
       console.error('上传照片失败:', error);
-      message.error(`${file.name} 上传失败`);
+      message.error(`${file.name} 上传失败: ${error.message}`);
       onError();
     }
   };
@@ -214,41 +271,66 @@ function OrderUploadPage() {
   const handleConfirmSubmit = async () => {
     setLoading(true);
     try {
-      // 实际项目中需要调用API提交订单
-      // const response = await fetch('/api/order/submit', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify({
-      //     order_sn: orderInfo.order_sn,
-      //     receiver: orderInfo.receiver,
-      //     remark: orderInfo.remark,
-      //     photos: sizePhotos
-      //   })
-      // });
-      // const data = await response.json();
+      // 准备提交数据 - 按照API文档要求的格式
+      const photosArray = [];
       
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 这里模拟成功响应
-      const sizePhotoCount = {};
-      Object.entries(sizePhotos).forEach(([size, photos]) => {
-        sizePhotoCount[size] = photos.length;
+      // 将图片按尺寸整理，使用服务器返回的URL
+      Object.entries(sizePhotos).forEach(([sizeStr, photos]) => {
+        if (photos.length > 0) {
+          // 从尺寸字符串中提取尺寸信息（如"3寸-满版"）
+          // 获取尺寸对应的urls
+          const urls = photos.map(photo => photo.serverUrl || photo.url);
+          
+          // 按API文档格式添加到photos数组
+          photosArray.push({
+            spec: sizeStr, // 照片规格，例如"3寸-满版"
+            urls: urls     // 照片URL数组
+          });
+        }
       });
-
-      // 关闭对话框
-      setIsModalOpen(false);
       
-      // 跳转到成功页面
-      navigate('/success', { 
-        state: { 
-          total: totalPhotos,
-          sizePhotoCount,
-          orderSn: orderInfo.order_sn
-        } 
+      // 验证一下数据
+      console.log('准备提交订单数据:', {
+        order_sn: orderInfo.order_sn,
+        receiver: orderInfo.receiver,
+        remark: orderInfo.remark,
+        photos: photosArray
       });
+      
+      // 构建要提交的数据 - 格式要符合接口文档
+      const submitData = {
+        order_sn: orderInfo.order_sn,
+        receiver: orderInfo.receiver,
+        remark: orderInfo.remark,
+        photos: photosArray // 正确的字段名是photos，不是size_photos
+      };
+      
+      // 调用API提交订单
+      const response = await submitOrder(submitData);
+      
+      if (response.code === 0) {
+        // 统计每种尺寸的照片数量
+        const sizePhotoCount = {};
+        Object.entries(sizePhotos).forEach(([size, photos]) => {
+          sizePhotoCount[size] = photos.length;
+        });
+        
+        // 关闭对话框
+        setIsModalOpen(false);
+        
+        // 跳转到成功页面
+        navigate('/success', { 
+          state: { 
+            total: totalPhotos,
+            sizePhotoCount,
+            orderSn: orderInfo.order_sn
+          } 
+        });
+        
+        message.success('订单提交成功');
+      } else {
+        message.error(response.msg || '订单提交失败');
+      }
     } catch (error) {
       console.error('提交订单失败:', error);
       message.error('提交订单失败，请稍后重试');

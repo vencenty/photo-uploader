@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
+import { getOrderInfo } from '../services/api';
 
 const { Title } = Typography;
 
@@ -20,14 +21,23 @@ function OrderQueryPage() {
     
     setLoading(true);
     try {
-      // 这里模拟API调用，实际项目中应该使用真实API
-      // const response = await fetch(`/api/order/info?order_sn=${orderSn}`);
-      // const data = await response.json();
+      // 调用实际API获取订单信息
+      const response = await getOrderInfo(orderSn);
       
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (response.code === 0) {
+        // 根据查询结果处理
+        if (response.data) {
+          // 有订单记录，带上订单信息跳转
+          message.success('查询到订单信息');
+        } else {
+          // 没有订单记录，仅带订单号跳转
+          message.info('未查询到订单信息，将创建新订单');
+        }
+      } else {
+        message.warning(response.msg || '订单查询结果异常');
+      }
       
-      // 跳转到上传页面，并传递订单号
+      // 无论是否查到都跳转到上传页面
       navigate(`/upload?order_sn=${orderSn}`);
     } catch (error) {
       console.error('查询订单失败:', error);
