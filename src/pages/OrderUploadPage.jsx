@@ -36,6 +36,19 @@ function OrderUploadPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 判断是否是移动设备
+  const isMobile = windowWidth < 768;
 
   // 订单信息状态
   const [orderInfo, setOrderInfo] = useState({
@@ -317,19 +330,19 @@ function OrderUploadPage() {
 
   return (
     <Spin spinning={loadingData} tip="加载订单信息...">
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 0' }}>
-        <Title level={2}>订单上传</Title>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '10px 0' : '20px 0' }}>
+        <Title level={isMobile ? 3 : 2}>订单上传</Title>
         
         {/* 订单基本信息 */}
-        <Card title="订单信息" style={{ marginBottom: 24 }}>
+        <Card title="订单信息" style={{ marginBottom: 16 }}>
           <Form
             form={form}
             layout="vertical"
             initialValues={orderInfo}
             onValuesChange={handleValuesChange}
           >
-            <Row gutter={24}>
-              <Col span={12}>
+            <Row gutter={isMobile ? 8 : 24}>
+              <Col span={isMobile ? 24 : 12}>
                 <Form.Item 
                   name="order_sn" 
                   label="订单号"
@@ -341,7 +354,7 @@ function OrderUploadPage() {
                   />
                 </Form.Item>
               </Col>
-              <Col span={12}>
+              <Col span={isMobile ? 24 : 12}>
                 <Form.Item 
                   name="receiver" 
                   label="收货人"
@@ -356,7 +369,7 @@ function OrderUploadPage() {
               name="remark" 
               label="备注"
             >
-              <TextArea rows={4} placeholder="请输入备注信息" />
+              <TextArea rows={isMobile ? 3 : 4} placeholder="请输入备注信息" />
             </Form.Item>
           </Form>
         </Card>
@@ -371,16 +384,16 @@ function OrderUploadPage() {
               </Tooltip>
             </Space>
           } 
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: 16 }}
         >
           <Checkbox.Group 
             value={selectedSizes}
             onChange={handleSizeToggle}
             style={{ width: '100%' }}
           >
-            <Row gutter={[16, 16]}>
+            <Row gutter={[8, 8]}>
               {sizeOptions.map(size => (
-                <Col span={6} key={size}>
+                <Col span={isMobile ? 12 : 6} key={size}>
                   <Checkbox value={size}>{size}</Checkbox>
                 </Col>
               ))}
@@ -390,10 +403,16 @@ function OrderUploadPage() {
         
         {/* 照片上传区域 */}
         {selectedSizes.length > 0 && (
-          <Card title="上传照片" style={{ marginBottom: 24 }}>
+          <Card title="上传照片" style={{ marginBottom: 16 }}>
             {selectedSizes.map(size => (
-              <div key={size} style={{ marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid #f0f0f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div key={size} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: isMobile ? 'column' : 'row',
+                  justifyContent: 'space-between', 
+                  alignItems: isMobile ? 'flex-start' : 'center', 
+                  marginBottom: 16 
+                }}>
                   <Title level={4}>{size}</Title>
                   <Text type="secondary">已上传 {sizePhotos[size]?.length || 0} 张</Text>
                 </div>
@@ -404,6 +423,7 @@ function OrderUploadPage() {
                   onPhotosChange={setSizePhotos}
                   uploadingCount={uploadingPhotos}
                   onUploadingCountChange={setUploadingPhotos}
+                  isMobile={isMobile}
                 />
               </div>
             ))}
@@ -411,8 +431,14 @@ function OrderUploadPage() {
         )}
         
         {/* 底部统计和提交 */}
-        <Card style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row', 
+            justifyContent: 'space-between', 
+            alignItems: isMobile ? 'center' : 'center',
+            gap: isMobile ? '16px' : 0
+          }}>
             <Statistic
               title="总上传照片数"
               value={totalPhotos}
@@ -434,9 +460,10 @@ function OrderUploadPage() {
                 type="primary"
                 icon={<SaveOutlined />}
                 onClick={handleSubmit}
-                size="large"
+                size={isMobile ? "middle" : "large"}
                 loading={uploadingPhotos > 0}
                 disabled={!formValid}
+                block={isMobile}
               >
                 {uploadingPhotos > 0 ? `正在上传 (${uploadingPhotos})` : "提交订单"}
               </Button>
@@ -453,6 +480,7 @@ function OrderUploadPage() {
           okText="确认提交"
           cancelText="取消"
           confirmLoading={loading}
+          width={isMobile ? '95%' : 520}
         >
           <p>您确定要提交此订单吗？</p>
           <Statistic title="照片总数" value={totalPhotos} suffix="张" />

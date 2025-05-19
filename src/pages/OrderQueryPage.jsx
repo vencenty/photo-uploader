@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
+import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { getOrderInfo } from '../services/api';
 
@@ -9,7 +9,20 @@ const { Title } = Typography;
 function OrderQueryPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const navigate = useNavigate();
+
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 判断是否是移动设备
+  const isMobile = windowWidth < 768;
 
   const handleQuery = async (values) => {
     const { orderSn } = values;
@@ -48,10 +61,22 @@ function OrderQueryPage() {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '50px' }}>
-      <Card style={{ width: 500, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      marginTop: isMobile ? '20px' : '50px',
+      padding: isMobile ? '0 10px' : 0
+    }}>
+      <Card 
+        style={{ 
+          width: isMobile ? '100%' : 500, 
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          borderRadius: '8px'
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2}>订单查询</Title>
+          <Title level={isMobile ? 3 : 2}>订单查询</Title>
         </div>
         
         <Form
@@ -67,7 +92,7 @@ function OrderQueryPage() {
           >
             <Input 
               placeholder="请输入订单号"
-              size="large"
+              size={isMobile ? 'middle' : 'large'}
               allowClear
             />
           </Form.Item>
@@ -77,7 +102,7 @@ function OrderQueryPage() {
               type="primary" 
               htmlType="submit" 
               block 
-              size="large"
+              size={isMobile ? 'middle' : 'large'}
               loading={loading}
               icon={<SearchOutlined />}
             >
