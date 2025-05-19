@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Form, Input, Button, Card, Typography, message, 
-  Checkbox, Row, Col, Upload, Divider, Space, 
+  Checkbox, Row, Col, Space, 
   Modal, Spin, Statistic, Tooltip 
 } from 'antd';
 import { 
-  UploadOutlined, DeleteOutlined, SaveOutlined, 
-  PictureOutlined, InfoCircleOutlined 
+  SaveOutlined, InfoCircleOutlined 
 } from '@ant-design/icons';
-import { getOrderInfo, uploadPhoto, submitOrder } from '../services/api';
+import { getOrderInfo, submitOrder } from '../services/api';
+import PhotoUploader from '../components/PhotoUploader';
+import { uploadConfig } from '../config/app.config';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -54,6 +55,12 @@ function OrderUploadPage() {
   
   // 提交订单确认对话框
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 添加上传中状态跟踪
+  const [uploadingPhotos, setUploadingPhotos] = useState(0);
+  
+  // 添加表单是否完整有效的状态
+  const [formValid, setFormValid] = useState(false);
 
   // 计算总照片数
   useEffect(() => {
@@ -167,69 +174,7 @@ function OrderUploadPage() {
     setSizePhotos(newSizePhotos);
   };
 
-  // 处理照片上传的自定义操作
-  const customRequest = (size) => async (options) => {
-    const { file, onSuccess, onError, onProgress } = options;
-    
-    try {
-      // 调用API上传照片
-      onProgress({ percent: 30 });
-      const response = await uploadPhoto(file);
-      onProgress({ percent: 100 });
-      
-      // 检查API响应是否成功
-      if (response.code === 0 && response.data) {
-        // 根据接口文档获取图片URL
-        const photoUrl = response.data.url || response.data;
-        
-        // 创建照片对象
-        const newPhoto = {
-          id: Math.random().toString(36).substr(2, 9),
-          name: file.name,
-          // 显示用的URL
-          url: photoUrl,
-          status: 'done',
-          // 提交时使用的URL
-          serverUrl: photoUrl
-        };
-        
-        // 添加到状态
-        setSizePhotos(prev => ({
-          ...prev,
-          [size]: [...(prev[size] || []), newPhoto]
-        }));
-        
-        message.success(`${file.name} 上传成功`);
-        onSuccess();
-      } else {
-        message.error(response.msg || `${file.name} 上传失败`);
-        onError();
-      }
-    } catch (error) {
-      console.error('上传照片失败:', error);
-      message.error(`${file.name} 上传失败: ${error.message}`);
-      onError();
-    }
-  };
-
-  // 删除照片 - 重写逻辑
-  const handleDeletePhoto = (size, photoId) => {
-    // 直接删除照片，不使用Modal确认
-    setSizePhotos(prev => {
-      const updatedPhotos = {
-        ...prev,
-        [size]: prev[size].filter(photo => photo.id !== photoId)
-      };
-      message.success('照片已删除');
-      return updatedPhotos;
-    });
-  };
-
-  // 预览照片 - 在新窗口打开
-  const handlePreview = (photoUrl) => {
-    // 在新窗口打开图片
-    window.open(photoUrl, '_blank');
-  };
+  // 这些函数已移至 PhotoUploader 组件
 
   // 提交订单前验证
   const handleSubmit = () => {
@@ -244,12 +189,59 @@ function OrderUploadPage() {
         return;
       }
       
+      // 检查是否有未上传完的照片
+      if (uploadingPhotos > 0) {
+        message.warning('还有照片正在上传中，请等待上传完成后提交');
+        return;
+      }
+      
+      // 检查每个已选尺寸是否都上传了照片
+      const emptySelectedSizes = selectedSizes.filter(size => 
+        !sizePhotos[size] || sizePhotos[size].length === 0
+      );
+      
+      if (emptySelectedSizes.length > 0) {
+        message.warning(`以下尺寸尚未上传照片: ${emptySelectedSizes.join(', ')}`);
+        return;
+      }
+      
       // 打开确认对话框
       setIsModalOpen(true);
     }).catch(errorInfo => {
       console.log('表单验证失败:', errorInfo);
+      message.error('表单验证失败，请检查填写的信息');
     });
   };
+  
+  // 检查表单是否有效
+  useEffect(() => {
+    const checkFormValid = async () => {
+      try {
+        // 校验表单字段
+        await form.validateFields(['order_sn', 'receiver']);
+        
+        // 检查是否选择了尺寸
+        const hasSizes = selectedSizes.length > 0;
+        
+        // 检查是否有照片
+        const hasPhotos = totalPhotos > 0;
+        
+        // 检查是否有正在上传的照片
+        const noUploading = uploadingPhotos === 0;
+        
+        // 检查是否每个已选尺寸都上传了照片
+        const allSizesHavePhotos = selectedSizes.every(size => 
+          sizePhotos[size] && sizePhotos[size].length > 0
+        );
+        
+        setFormValid(hasSizes && hasPhotos && noUploading && allSizesHavePhotos);
+      } catch (e) {
+        setFormValid(false);
+      }
+    };
+    
+    checkFormValid();
+  }, [form, selectedSizes, totalPhotos, uploadingPhotos, sizePhotos]);
   
   // 确认提交
   const handleConfirmSubmit = async () => {
@@ -406,60 +398,13 @@ function OrderUploadPage() {
                   <Text type="secondary">已上传 {sizePhotos[size]?.length || 0} 张</Text>
                 </div>
                 
-                <Upload
-                  listType="picture-card"
-                  accept="image/*"
-                  multiple
-                  customRequest={customRequest(size)}
-                  showUploadList={false}
-                >
-                  <div>
-                    <PictureOutlined />
-                    <div style={{ marginTop: 8 }}>上传照片</div>
-                  </div>
-                </Upload>
-                
-                {/* 照片预览区域 */}
-                {sizePhotos[size]?.length > 0 && (
-                  <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                    {sizePhotos[size].map(photo => (
-                      <Col key={photo.id} xs={12} sm={8} md={6} lg={4}>
-                        <Card
-                          hoverable
-                          cover={
-                            <img
-                              alt={photo.name}
-                              src={photo.url}
-                              style={{ height: 120, objectFit: 'cover' }}
-                            />
-                          }
-                          bodyStyle={{ padding: '8px', textAlign: 'center' }}
-                        >
-                          <Card.Meta description={
-                            <Text ellipsis style={{ fontSize: 12 }}>{photo.name}</Text>
-                          } />
-                          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '8px' }}>
-                            <Button 
-                              type="text" 
-                              icon={<PictureOutlined />} 
-                              onClick={() => handlePreview(photo.url)}
-                            >
-                              预览
-                            </Button>
-                            <Button 
-                              type="text" 
-                              danger
-                              icon={<DeleteOutlined />} 
-                              onClick={() => handleDeletePhoto(size, photo.id)}
-                            >
-                              删除
-                            </Button>
-                          </div>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                )}
+                <PhotoUploader 
+                  size={size}
+                  photos={sizePhotos[size] || []}
+                  onPhotosChange={setSizePhotos}
+                  uploadingCount={uploadingPhotos}
+                  onUploadingCountChange={setUploadingPhotos}
+                />
               </div>
             ))}
           </Card>
@@ -474,15 +419,28 @@ function OrderUploadPage() {
               suffix="张"
             />
             
-            <Button
-              type="primary"
-              icon={<SaveOutlined />}
-              onClick={handleSubmit}
-              size="large"
-              disabled={totalPhotos === 0}
-            >
-              提交订单
-            </Button>
+            <Tooltip title={
+              !formValid 
+                ? uploadingPhotos > 0
+                  ? "有照片正在上传中，请等待上传完成"
+                  : totalPhotos === 0
+                    ? "请至少上传一张照片"
+                    : selectedSizes.some(size => !sizePhotos[size] || sizePhotos[size].length === 0)
+                      ? "每个选中的尺寸都需要上传照片"
+                      : "请填写必要的订单信息"
+                : ""
+            }>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSubmit}
+                size="large"
+                loading={uploadingPhotos > 0}
+                disabled={!formValid}
+              >
+                {uploadingPhotos > 0 ? `正在上传 (${uploadingPhotos})` : "提交订单"}
+              </Button>
+            </Tooltip>
           </div>
         </Card>
         

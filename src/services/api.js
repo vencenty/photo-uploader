@@ -1,6 +1,5 @@
 // API服务配置
 const API_BASE_URL = 'http://localhost:8787';
-
 // 查询订单信息（POST请求）
 export const getOrderInfo = async (orderSn) => {
   try {
