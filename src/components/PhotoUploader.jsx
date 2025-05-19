@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
 import { Upload, Button, message, Typography, Card, Row, Col, Tag, Progress } from 'antd';
-import { PictureOutlined, DeleteOutlined, CompressOutlined, LoadingOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { 
+  PictureOutlined, DeleteOutlined, CompressOutlined, 
+  LoadingOutlined, ClockCircleOutlined, 
+  ScissorOutlined 
+} from '@ant-design/icons';
 import { uploadPhoto } from '../services/api';
 import imageCompressor from '../utils/imageCompressor';
+import ImageCropper from './ImageCropper';
+import { getAspectRatioByName } from '../config/photo';
+
 const { processImageBeforeUpload, isCompressionNeeded } = imageCompressor;
 import { uploadConfig } from '../config/app.config';
 
@@ -25,6 +32,9 @@ const PhotoUploader = ({
   const [progressStatus, setProgressStatus] = useState({});
   // 等待上传的文件
   const [waitingFiles, setWaitingFiles] = useState([]);
+  // 裁剪相关状态
+  const [cropperVisible, setCropperVisible] = useState(false);
+  const [currentPhoto, setCurrentPhoto] = useState(null);
   
   // 处理照片上传
   const customRequest = async (options) => {
@@ -234,12 +244,75 @@ const PhotoUploader = ({
     window.open(photoUrl, '_blank');
   };
   
+  // 打开裁剪对话框
+  const handleCropPhoto = (photo) => {
+    // 检查是否正在上传
+    if (uploadingCount > 0) {
+      message.warning('有照片正在上传，请等待上传完成后再裁剪');
+      return;
+    }
+    
+    setCurrentPhoto(photo);
+    setCropperVisible(true);
+  };
+  
+  // 处理裁剪完成
+  const handleCropComplete = async (croppedFile) => {
+    if (!currentPhoto) return;
+    
+    try {
+      // 显示上传中消息
+      message.loading('正在上传裁剪后的照片...', 0);
+      
+      // 上传裁剪后的照片
+      const response = await uploadPhoto(croppedFile);
+      
+      if (response.code === 0 && response.data) {
+        // 获取新的URL
+        const photoUrl = response.data.url || response.data;
+        
+        // 更新照片列表，替换原照片
+        onPhotosChange(prev => {
+          const updatedPhotos = [...prev[size]];
+          const photoIndex = updatedPhotos.findIndex(p => p.id === currentPhoto.id);
+          
+          if (photoIndex !== -1) {
+            updatedPhotos[photoIndex] = {
+              ...updatedPhotos[photoIndex],
+              url: photoUrl,
+              serverUrl: photoUrl,
+              name: croppedFile.name,
+              cropped: true,
+            };
+          }
+          
+          return {
+            ...prev,
+            [size]: updatedPhotos
+          };
+        });
+        
+        message.success('照片裁剪并上传成功');
+      } else {
+        message.error(response.msg || '裁剪照片上传失败');
+      }
+    } catch (error) {
+      console.error('裁剪照片上传失败:', error);
+      message.error('裁剪照片上传失败，请重试');
+    } finally {
+      message.destroy(); // 关闭loading消息
+    }
+  };
+  
   // 格式化文件大小
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
+  
+  // 获取当前尺寸的宽高比
+  const aspectRatio = getAspectRatioByName(size);
   
   return (
     <div>
@@ -344,6 +417,17 @@ const PhotoUploader = ({
                         <CompressOutlined /> 已压缩
                       </Tag>
                     )}
+                    {photo.cropped && (
+                      <Tag color="green" style={{ 
+                        position: 'absolute', 
+                        top: photo.compressed ? 30 : 5, 
+                        right: 5, 
+                        fontSize: isMobile ? 10 : 12,
+                        padding: isMobile ? '0 4px' : '0 6px'
+                      }}>
+                        <ScissorOutlined /> 已裁剪
+                      </Tag>
+                    )}
                   </div>
                 }
                 bodyStyle={{ padding: isMobile ? '4px' : '8px', textAlign: 'center' }}
@@ -364,7 +448,8 @@ const PhotoUploader = ({
                   display: 'flex', 
                   justifyContent: 'space-around', 
                   marginTop: '8px',
-                  flexWrap: isMobile ? 'wrap' : 'nowrap'
+                  flexWrap: isMobile ? 'wrap' : 'nowrap',
+                  gap: isMobile ? '4px' : '0'
                 }}>
                   <Button 
                     type="text" 
@@ -374,6 +459,15 @@ const PhotoUploader = ({
                     style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
                   >
                     {isMobile ? '' : '预览'}
+                  </Button>
+                  <Button 
+                    type="text" 
+                    icon={<ScissorOutlined />} 
+                    onClick={() => handleCropPhoto(photo)}
+                    size={isMobile ? "small" : "middle"}
+                    style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
+                  >
+                    {isMobile ? '' : '裁剪'}
                   </Button>
                   <Button 
                     type="text" 
@@ -390,6 +484,18 @@ const PhotoUploader = ({
             </Col>
           ))}
         </Row>
+      )}
+      
+      {/* 裁剪组件 */}
+      {currentPhoto && (
+        <ImageCropper
+          image={currentPhoto.url}
+          visible={cropperVisible}
+          onClose={() => setCropperVisible(false)}
+          onCropComplete={handleCropComplete}
+          aspectRatio={aspectRatio}
+          isMobile={isMobile}
+        />
       )}
     </div>
   );

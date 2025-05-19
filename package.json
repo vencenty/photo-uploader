@@ -13,7 +13,9 @@
     "antd": "^5.25.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-easy-crop": "^5.4.1",
     "react-router-dom": "^7.6.0",
+    "styled-components": "^6.1.18",
     "vue": "^3.5.13"
   },
   "devDependencies": {
