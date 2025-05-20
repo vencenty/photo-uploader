@@ -25,7 +25,7 @@ export const uploadConfig = {
     timeout: 30000,
     
     // 同时上传的最大数量
-    maxSimultaneousUploads: 5,
+    maxSimultaneousUploads: 1,
     
     // 图片代理URL前缀
     imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'

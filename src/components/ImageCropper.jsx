@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal, Button, Slider, message, Tooltip } from 'antd';
 import { 
   RotateLeftOutlined, RotateRightOutlined, ZoomInOutlined, ZoomOutOutlined,
@@ -95,22 +95,63 @@ const ImageCropper = ({
       };
       setHistory([initialState]);
       setHistoryIndex(0);
+      
+      // 重置状态
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setRotation(0);
     }
   }, [visible]);
   
   // 保存当前状态到历史记录
-  const saveToHistory = (newState) => {
+  const saveToHistory = useCallback((newState) => {
     // 如果当前不是最新状态，则移除后面的历史
-    const newHistory = history.slice(0, historyIndex + 1);
-    // 添加新状态
-    newHistory.push(newState);
-    // 限制历史记录最多10步
-    if (newHistory.length > 10) {
-      newHistory.shift();
-    }
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  };
+    setHistory(prevHistory => {
+      const newHistory = prevHistory.slice(0, historyIndex + 1);
+      // 添加新状态
+      newHistory.push(newState);
+      // 限制历史记录最多10步
+      if (newHistory.length > 10) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prevIndex => prevIndex + 1);
+  }, [historyIndex]);
+  
+  // 图片加载完成后的回调
+  const onMediaLoaded = useCallback((mediaSize) => {
+    // 根据容器和图片大小计算适当的初始缩放
+    const containerWidth = 800;
+    const containerHeight = isMobile ? 300 : 400;
+    
+    // 计算适当的缩放比例，使图片在容器中合适显示
+    const widthRatio = containerWidth / mediaSize.naturalWidth;
+    const heightRatio = containerHeight / mediaSize.naturalHeight;
+    
+    // 选择较小的比例，确保图片在容器中完全可见
+    const optimalZoom = Math.min(widthRatio, heightRatio) * 0.9;
+    
+    // 更新缩放级别
+    setZoom(Math.max(optimalZoom, 1));
+    
+    // 更新历史记录
+    const newState = {
+      crop: { x: 0, y: 0 },
+      zoom: Math.max(optimalZoom, 1),
+      rotation: 0
+    };
+    
+    setHistory(prevHistory => {
+      const newHistory = prevHistory.slice(0, historyIndex + 1);
+      newHistory.push(newState);
+      if (newHistory.length > 10) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prevIndex => prevIndex + 1);
+  }, [isMobile, historyIndex]);
   
   // 撤销操作
   const handleUndo = () => {
@@ -170,7 +211,7 @@ const ImageCropper = ({
   }, []);
 
   // 处理旋转
-  const handleRotate = (direction) => {
+  const handleRotate = useCallback((direction) => {
     const newRotation = direction === 'left' 
       ? rotation - 90 
       : rotation + 90;
@@ -182,7 +223,7 @@ const ImageCropper = ({
       zoom,
       rotation: newRotation
     });
-  };
+  }, [crop, zoom, rotation, saveToHistory]);
 
   // 创建裁剪后的图片
   const createCroppedImage = useCallback(async () => {
@@ -248,6 +289,7 @@ const ImageCropper = ({
           onCropChange={onCropChange}
           onZoomChange={onZoomChange}
           onCropComplete={handleCropComplete}
+          onMediaLoaded={onMediaLoaded}
           objectFit="contain"
           showGrid={true}
         />

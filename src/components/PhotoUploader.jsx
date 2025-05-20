@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Button, message, Typography, Card, Row, Col, Tag, Progress } from 'antd';
+import { Upload, Button, message, Typography, Card, Row, Col, Tag, Progress, Image } from 'antd';
 import { 
   PictureOutlined, DeleteOutlined, CompressOutlined, 
   LoadingOutlined, ClockCircleOutlined, 
@@ -30,7 +30,7 @@ const PhotoUploader = ({
   const [uploadingFiles, setUploadingFiles] = useState([]);
   // 上传进度状态
   const [progressStatus, setProgressStatus] = useState({});
-  // 等待上传的文件
+  // 等待上传的文件队列
   const [waitingFiles, setWaitingFiles] = useState([]);
   // 裁剪相关状态
   const [cropperVisible, setCropperVisible] = useState(false);
@@ -40,14 +40,20 @@ const PhotoUploader = ({
   const customRequest = async (options) => {
     const { file, onSuccess, onError, onProgress } = options;
     
-    // 检查是否超过同时上传数量限制
-    if (uploadingFiles.length >= uploadConfig.maxSimultaneousUploads) {
+    // 检查是否有照片正在上传
+    if (uploadingCount > 0) {
       // 添加到等待队列
       setWaitingFiles(prev => [...prev, file]);
-      message.info(`${file.name} 已加入上传队列，等待其他文件上传完成后自动开始`);
+      message.info(`${file.name} 已加入上传队列，将在当前上传完成后自动开始`);
       return;
     }
     
+    // 执行上传
+    await uploadFile(file, onSuccess, onError, onProgress);
+  };
+  
+  // 上传单个文件
+  const uploadFile = async (file, onSuccess, onError, onProgress) => {
     // 增加上传中计数
     onUploadingCountChange(prev => prev + 1);
     setUploadingFiles(prev => [...prev, file]);
@@ -61,22 +67,23 @@ const PhotoUploader = ({
     // 设置上传超时
     const uploadTimeout = setTimeout(() => {
       message.error(`${file.name} 上传超时，请检查网络连接后重试`);
-      onError(new Error('上传超时'));
+      onError?.(new Error('上传超时'));
       onUploadingCountChange(prev => Math.max(0, prev - 1));
       setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
-      setProgressStatus(prev => ({
-        ...prev,
-        [file.uid]: { ...prev[file.uid], status: 'exception', error: '上传超时' }
-      }));
+      setProgressStatus(prev => {
+        const updated = { ...prev };
+        delete updated[file.uid];
+        return updated;
+      });
       
-      // 检查等待队列，开始上传下一个
-      processWaitingQueue();
+      // 继续上传队列中的下一个文件
+      processNextFileInQueue();
     }, uploadConfig.timeout);
     
     try {
       // 显示初始进度
       updateProgress(file.uid, 10);
-      onProgress({ percent: 10 });
+      onProgress?.({ percent: 10 });
       
       // 检查是否需要压缩
       const needCompression = isCompressionNeeded(file);
@@ -86,7 +93,7 @@ const PhotoUploader = ({
       
       // 更新进度状态 - 压缩完成
       updateProgress(file.uid, 30, '图片已压缩，正在上传...');
-      onProgress({ percent: 30 });
+      onProgress?.({ percent: 30 });
       
       // 模拟真实的进度更新
       const progressInterval = setInterval(() => {
@@ -95,7 +102,7 @@ const PhotoUploader = ({
         const newPercent = Math.min(95, currentPercent + randomIncrement);
         
         updateProgress(file.uid, newPercent);
-        onProgress({ percent: newPercent });
+        onProgress?.({ percent: newPercent });
       }, 800);
       
       // 调用API上传照片
@@ -107,7 +114,7 @@ const PhotoUploader = ({
       
       // 显示完成进度
       updateProgress(file.uid, 100, '上传完成');
-      onProgress({ percent: 100 });
+      onProgress?.({ percent: 100 });
       
       // 检查API响应是否成功
       if (response.code === 0 && response.data) {
@@ -141,7 +148,7 @@ const PhotoUploader = ({
           : '';
           
         message.success(`${file.name} 上传成功${sizeReduction}`);
-        onSuccess();
+        onSuccess?.();
         
         // 短暂延迟后移除进度条显示
         setTimeout(() => {
@@ -154,7 +161,7 @@ const PhotoUploader = ({
       } else {
         updateProgress(file.uid, 100, '上传失败', 'exception');
         message.error(response.msg || `${file.name} 上传失败`);
-        onError(new Error(response.msg || '上传失败'));
+        onError?.(new Error(response.msg || '上传失败'));
       }
     } catch (error) {
       // 清除超时
@@ -165,14 +172,27 @@ const PhotoUploader = ({
       
       console.error('上传照片失败:', error);
       message.error(`${file.name} 上传失败: ${error.message}`);
-      onError(error);
+      onError?.(error);
     } finally {
       // 清除上传状态
       onUploadingCountChange(prev => Math.max(0, prev - 1));
       setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
       
-      // 处理等待队列
-      processWaitingQueue();
+      // 处理队列中的下一个文件
+      processNextFileInQueue();
+    }
+  };
+  
+  // 处理队列中的下一个文件
+  const processNextFileInQueue = () => {
+    if (waitingFiles.length > 0) {
+      const nextFile = waitingFiles[0];
+      setWaitingFiles(prev => prev.slice(1));
+      
+      // 短暂延迟后开始上传下一个文件
+      setTimeout(() => {
+        uploadFile(nextFile);
+      }, 500);
     }
   };
   
@@ -187,28 +207,6 @@ const PhotoUploader = ({
         message: message || prev[fileUid]?.message
       }
     }));
-  };
-  
-  // 处理等待队列
-  const processWaitingQueue = () => {
-    if (waitingFiles.length > 0 && uploadingFiles.length < uploadConfig.maxSimultaneousUploads) {
-      // 获取队列中的第一个文件
-      const nextFile = waitingFiles[0];
-      
-      // 从等待队列中移除
-      setWaitingFiles(prev => prev.slice(1));
-      
-      // 创建并触发Upload事件
-      const uploadEvent = {
-        file: nextFile,
-        onSuccess: () => {},
-        onError: () => {},
-        onProgress: () => {}
-      };
-      
-      // 开始上传
-      customRequest(uploadEvent);
-    }
   };
   
   // 处理删除照片
@@ -236,12 +234,6 @@ const PhotoUploader = ({
       console.error('删除照片失败:', error);
       message.error('删除照片失败，请重试');
     }
-  };
-  
-  // 预览照片
-  const handlePreview = (photo) => {
-    // 使用原始URL在新窗口打开图片，而不是代理URL
-    window.open(photo.serverUrl, '_blank');
   };
   
   // 打开裁剪对话框
@@ -314,25 +306,27 @@ const PhotoUploader = ({
   // 获取当前尺寸的宽高比
   const aspectRatio = getAspectRatioByName(size);
   
+  // 检查是否为满版照片（用于决定是否显示裁剪按钮）
+  // const isFullSizePhoto = size && size.includes('满版');
+  const isFullSizePhoto = false
+  
   return (
     <div>
       <Upload
         listType="picture-card"
         accept="image/*"
-        multiple
+        multiple={true}
         customRequest={customRequest}
         showUploadList={false}
-        disabled={uploadingCount > uploadConfig.maxSimultaneousUploads}
+        disabled={false}
         style={{ width: '100%' }}
       >
         <div style={{ textAlign: 'center', width: '100%' }}>
           <PictureOutlined style={{ fontSize: isMobile ? 20 : 24 }} />
           <div style={{ marginTop: 8, fontSize: isMobile ? 12 : 14 }}>
-            {uploadingCount > uploadConfig.maxSimultaneousUploads 
-              ? "上传数量已达上限" 
-              : uploadingCount > 0 
-                ? `上传中 (${uploadingCount})` 
-                : "上传照片"}
+            {uploadingCount > 0 
+              ? "正在上传..." 
+              : "上传照片"}
           </div>
         </div>
       </Upload>
@@ -342,7 +336,8 @@ const PhotoUploader = ({
         <div style={{ margin: '16px 0', background: '#f5f5f5', padding: '12px', borderRadius: '8px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>
-              上传进度 ({uploadingFiles.length} / {uploadingFiles.length + waitingFiles.length})
+              上传进度
+              {waitingFiles.length > 0 && ` (队列中: ${waitingFiles.length})`}
             </Text>
           </div>
           
@@ -372,118 +367,129 @@ const PhotoUploader = ({
             </div>
           ))}
           
-          {/* 等待中的文件 */}
+          {/* 等待中的文件 - 只显示前3个 */}
           {waitingFiles.length > 0 && (
             <div style={{ marginTop: '10px' }}>
               <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13, display: 'block', marginBottom: 5 }}>
                 等待上传:
               </Text>
-              {waitingFiles.map((file, index) => (
+              {waitingFiles.slice(0, 3).map((file, index) => (
                 <div key={file.uid || index} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
                   <ClockCircleOutlined style={{ color: '#faad14', marginRight: 6 }} />
                   <Text ellipsis style={{ width: '90%', fontSize: isMobile ? 12 : 13, color: '#faad14' }}>
-                    {file.name} - 队列中...
+                    {file.name} - 队列中
                   </Text>
                 </div>
               ))}
+              {waitingFiles.length > 3 && (
+                <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
+                  还有 {waitingFiles.length - 3} 个文件在队列中...
+                </Text>
+              )}
             </div>
           )}
         </div>
       )}
       
-      {/* 照片预览区域 */}
+      {/* 照片预览区域 - 使用Ant Design的Image组件 */}
       {photos.length > 0 && (
-        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]} style={{ marginTop: 16 }}>
-          {photos.map(photo => (
-            <Col key={photo.id} xs={12} sm={8} md={6} lg={4}>
-              <Card
-                hoverable
-                size={isMobile ? "small" : "default"}
-                cover={
-                  <div style={{ position: 'relative' }}>
-                    <img
-                      alt={photo.name}
+        <div style={{ marginTop: 16 }}>
+          <Image.PreviewGroup>
+            <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
+              {photos.map(photo => (
+                <Col key={photo.id} xs={12} sm={8} md={6} lg={4}>
+                  <div style={{ 
+                    position: 'relative', 
+                    marginBottom: 8, 
+                    width: '100%',
+                    height: isMobile ? '150px' : '180px',
+                    overflow: 'hidden',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Image
                       src={photo.url}
-                      style={{ height: isMobile ? 80 : 120, objectFit: 'cover', width: '100%' }}
+                      alt={photo.name}
+                      style={{ 
+                        objectFit: 'contain',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        display: 'block'
+                      }}
+                      preview={{
+                        mask: <div style={{ fontSize: isMobile ? 12 : 14 }}>预览</div>,
+                        maskClassName: 'custom-mask'
+                      }}
+                      rootClassName="photo-preview-wrapper"
                     />
-                    {photo.compressed && (
-                      <Tag color="blue" style={{ 
-                        position: 'absolute', 
-                        top: 5, 
-                        right: 5, 
-                        fontSize: isMobile ? 10 : 12,
-                        padding: isMobile ? '0 4px' : '0 6px'
-                      }}>
-                        <CompressOutlined /> 已压缩
-                      </Tag>
-                    )}
-                    {photo.cropped && (
-                      <Tag color="green" style={{ 
-                        position: 'absolute', 
-                        top: photo.compressed ? 30 : 5, 
-                        right: 5, 
-                        fontSize: isMobile ? 10 : 12,
-                        padding: isMobile ? '0 4px' : '0 6px'
-                      }}>
-                        <ScissorOutlined /> 已裁剪
-                      </Tag>
-                    )}
-                  </div>
-                }
-                bodyStyle={{ padding: isMobile ? '4px' : '8px', textAlign: 'center' }}
-              >
-                <Card.Meta 
-                  description={
-                    <div>
-                      <Text ellipsis style={{ fontSize: isMobile ? 10 : 12 }}>{photo.name}</Text>
-                      {photo.compressed && photo.originalSize && photo.compressedSize && (
-                        <div style={{ fontSize: isMobile ? 9 : 10, color: '#999', marginTop: 4 }}>
-                          {formatFileSize(photo.originalSize)} → {formatFileSize(photo.compressedSize)}
-                        </div>
+                    
+                    {/* 标签区域 */}
+                    <div style={{ position: 'absolute', top: 5, right: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {photo.compressed && (
+                        <Tag color="blue" style={{ 
+                          fontSize: isMobile ? 10 : 12,
+                          padding: isMobile ? '0 4px' : '0 6px',
+                          margin: 0
+                        }}>
+                          <CompressOutlined /> 已压缩
+                        </Tag>
+                      )}
+                      {photo.cropped && (
+                        <Tag color="green" style={{ 
+                          fontSize: isMobile ? 10 : 12,
+                          padding: isMobile ? '0 4px' : '0 6px',
+                          margin: 0
+                        }}>
+                          <ScissorOutlined /> 已裁剪
+                        </Tag>
                       )}
                     </div>
-                  } 
-                />
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-around', 
-                  marginTop: '8px',
-                  flexWrap: isMobile ? 'wrap' : 'nowrap',
-                  gap: isMobile ? '4px' : '0'
-                }}>
-                  <Button 
-                    type="text" 
-                    icon={<PictureOutlined />} 
-                    onClick={() => handlePreview(photo)}
-                    size={isMobile ? "small" : "middle"}
-                    style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
-                  >
-          
-                  </Button>
-                  <Button 
-                    type="text" 
-                    icon={<ScissorOutlined />} 
-                    onClick={() => handleCropPhoto(photo)}
-                    size={isMobile ? "small" : "middle"}
-                    style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
-                  >
-             
-                  </Button>
-                  <Button 
-                    type="text" 
-                    danger
-                    icon={<DeleteOutlined />} 
-                    onClick={() => handleDeletePhoto(photo.id)}
-                    size={isMobile ? "small" : "middle"}
-                    style={{ padding: isMobile ? '0 4px' : '4px 8px', minWidth: isMobile ? 'auto' : '60px' }}
-                  >
+                  </div>
                   
-                  </Button>
-                </div>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text ellipsis style={{ fontSize: isMobile ? 10 : 12, flex: 1 }}>
+                      {photo.name}
+                    </Text>
+                    {photo.compressed && photo.originalSize && photo.compressedSize && (
+                      <Text style={{ fontSize: isMobile ? 9 : 10, color: '#999', marginLeft: 4 }}>
+                        {formatFileSize(photo.compressedSize)}
+                      </Text>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    {/* 只在满版照片上显示裁剪按钮 */}
+                    {isFullSizePhoto && (
+                      <Button 
+                        type="text"
+                        icon={<ScissorOutlined />}
+                        onClick={() => handleCropPhoto(photo)}
+                        size={isMobile ? "small" : "middle"}
+                        style={{ padding: '0 8px' }}
+                      >
+                        裁剪
+                      </Button>
+                    )}
+                    
+                    <Button 
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDeletePhoto(photo.id)}
+                      size={isMobile ? "small" : "middle"}
+                      style={{ padding: '0 8px', marginLeft: 'auto' }}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Image.PreviewGroup>
+        </div>
       )}
       
       {/* 裁剪组件 */}
