@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Upload, Button, message, Typography, Card, Row, Col, Tag, Image } from 'antd';
 import { 
   PictureOutlined, DeleteOutlined, CompressOutlined, 
@@ -28,40 +28,9 @@ const PhotoUploader = ({
   onUploadingCountChange,
   isMobile = false
 }) => {
-  // 内部上传状态
-  const [uploadingFiles, setUploadingFiles] = useState([]);
   // 裁剪相关状态
   const [cropperVisible, setCropperVisible] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
-  // 等待上传的文件队列
-  const [fileQueue, setFileQueue] = useState([]);
-  // 当前活跃上传数
-  const [activeUploads, setActiveUploads] = useState(0);
-  
-  // 监听队列和活跃上传数的变化，自动处理队列
-  useEffect(() => {
-    processQueue();
-  }, [fileQueue, activeUploads]);
-  
-  // 处理上传队列
-  const processQueue = () => {
-    // 如果队列为空或者已达最大并发数，不处理
-    if (fileQueue.length === 0 || activeUploads >= MAX_CONCURRENT_UPLOADS) {
-      return;
-    }
-    
-    // 可以继续上传的数量
-    const availableSlots = MAX_CONCURRENT_UPLOADS - activeUploads;
-    // 从队列中取出文件开始上传
-    const filesToUpload = fileQueue.slice(0, availableSlots);
-    // 更新队列
-    setFileQueue(prev => prev.slice(availableSlots));
-    
-    // 开始上传文件
-    filesToUpload.forEach(fileInfo => {
-      uploadFile(fileInfo.file, fileInfo.onSuccess, fileInfo.onError, fileInfo.onProgress);
-    });
-  };
   
   // 在上传前验证照片
   const beforeUpload = (file) => {
@@ -79,47 +48,15 @@ const PhotoUploader = ({
   const customRequest = async (options) => {
     const { file, onSuccess, onError, onProgress } = options;
     
-    // 将文件添加到上传队列
-    setFileQueue(prev => [...prev, { file, onSuccess, onError, onProgress }]);
+    console.log('开始准备上传文件:', file.name);
     
-    // 如果选择了很多文件，显示提示
-    if (fileQueue.length > 5) {
-      message.info(`已添加文件到上传队列，将按顺序上传，请耐心等待`);
-    }
-  };
-  
-  // 上传单个文件
-  const uploadFile = async (file, onSuccess, onError, onProgress) => {
-    console.log('开始上传文件', file.name, '当前活跃上传数:', activeUploads);
+    // 设置上传状态为正在上传
+    onUploadingCountChange(1);
     
-    // 增加上传中计数
-    setActiveUploads(prev => prev + 1);
-    onUploadingCountChange(prev => {
-      const newCount = prev + 1;
-      console.log('更新上传计数:', prev, '->', newCount);
-      return newCount;
-    });
-    setUploadingFiles(prev => [...prev, file]);
-    
-    // 设置上传超时
-    const uploadTimeout = setTimeout(() => {
-      message.error(`${file.name} 上传超时，请检查网络连接后重试`);
-      onError?.(new Error('上传超时'));
-      
-      onUploadingCountChange(prev => {
-        const newCount = Math.max(0, prev - 1);
-        console.log('更新上传计数(超时):', prev, '->', newCount);
-        return newCount;
-      });
-      
-      setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
-      setActiveUploads(prev => Math.max(0, prev - 1));
-    }, 60000); // 60秒超时
+    // 显示初始进度
+    onProgress?.({ percent: 10 });
     
     try {
-      // 显示初始进度
-      onProgress?.({ percent: 10 });
-      
       // 检查是否需要压缩
       const needCompression = isCompressionNeeded(file);
       
@@ -131,9 +68,6 @@ const PhotoUploader = ({
       
       // 调用API上传照片
       const response = await uploadPhoto(processedFile);
-      
-      // 清除超时
-      clearTimeout(uploadTimeout);
       
       // 显示完成进度
       onProgress?.({ percent: 100 });
@@ -170,7 +104,6 @@ const PhotoUploader = ({
           : '';
           
         message.success(`${file.name} 上传成功${sizeReduction}`);
-        console.log('文件上传成功:', file.name);
         
         // 确保成功回调被调用
         if (onSuccess && typeof onSuccess === 'function') {
@@ -178,7 +111,6 @@ const PhotoUploader = ({
         }
       } else {
         message.error(response.msg || `${file.name} 上传失败`);
-        console.error('文件上传API返回错误:', file.name, response);
         
         // 确保错误回调被调用
         if (onError && typeof onError === 'function') {
@@ -186,9 +118,6 @@ const PhotoUploader = ({
         }
       }
     } catch (error) {
-      // 清除超时
-      clearTimeout(uploadTimeout);
-      
       console.error('上传照片失败:', error);
       message.error(`${file.name} 上传失败: ${error.message}`);
       
@@ -197,17 +126,9 @@ const PhotoUploader = ({
         onError(error);
       }
     } finally {
-      // 清除上传状态
-      console.log('完成上传处理:', file.name);
-      
-      onUploadingCountChange(prev => {
-        const newCount = Math.max(0, prev - 1);
-        console.log('更新上传计数(完成):', prev, '->', newCount);
-        return newCount;
-      });
-      
-      setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
-      setActiveUploads(prev => Math.max(0, prev - 1));
+      // 完全重置上传状态
+      console.log('上传处理完成，重置状态:', file.name);
+      onUploadingCountChange(0);
     }
   };
   

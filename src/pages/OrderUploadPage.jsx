@@ -84,11 +84,14 @@ function OrderUploadPage() {
   // 计算总照片数
   useEffect(() => {
     let total = 0;
-    Object.values(sizePhotos).forEach(photos => {
-      total += photos.length;
+    Object.entries(sizePhotos).forEach(([size, photos]) => {
+      // 只统计选中尺寸的照片
+      if (selectedSizes.includes(size)) {
+        total += photos.length;
+      }
     });
     setTotalPhotos(total);
-  }, [sizePhotos]);
+  }, [sizePhotos, selectedSizes]);
 
   // 查询订单信息（从API获取）
   useEffect(() => {
@@ -180,10 +183,20 @@ function OrderUploadPage() {
 
   // 处理尺寸选择
   const handleSizeToggle = (checkedValue) => {
+    // 获取已取消选择的尺寸
+    const unselectedSizes = selectedSizes.filter(size => !checkedValue.includes(size));
+    
     setSelectedSizes(checkedValue);
     
     // 为新选择的尺寸初始化照片数组
     const newSizePhotos = { ...sizePhotos };
+    
+    // 移除已取消选择的尺寸的照片
+    unselectedSizes.forEach(size => {
+      delete newSizePhotos[size];
+    });
+    
+    // 为新选择的尺寸初始化照片数组
     checkedValue.forEach(size => {
       if (!newSizePhotos[size]) {
         newSizePhotos[size] = [];
@@ -194,6 +207,12 @@ function OrderUploadPage() {
     
     // 为新选择的尺寸初始化上传计数
     const newUploadingCounts = { ...uploadingPhotosBySize };
+    
+    // 移除已取消选择的尺寸的上传计数
+    unselectedSizes.forEach(size => {
+      delete newUploadingCounts[size];
+    });
+    
     checkedValue.forEach(size => {
       if (newUploadingCounts[size] === undefined) {
         newUploadingCounts[size] = 0;
@@ -236,35 +255,45 @@ function OrderUploadPage() {
       // 校验表单字段
       await form.validateFields(['order_sn', 'receiver']);
       
-      // 检查是否选择了尺寸
+      // 基本条件检查
       const hasSizes = selectedSizes.length > 0;
-      
-      // 检查是否有照片
-      const hasPhotos = totalPhotos > 0;
-      
-      // 检查是否有正在上传的照片
-      const noUploading = totalUploadingPhotos === 0;
-      
-      // 检查order_sn和receiver是否不为空
       const hasOrderSn = !!orderInfo.order_sn;
       const hasReceiver = !!orderInfo.receiver;
       
-      // 显示表单检查结果以便调试
-      console.log('表单验证状态(手动检查):', {
+      // 照片相关检查
+      const hasPhotos = totalPhotos > 0;
+      
+      // 检查每个选中的尺寸是否都有照片
+      const allSizesHavePhotos = selectedSizes.every(
+        size => sizePhotos[size] && sizePhotos[size].length > 0
+      );
+      
+      // 上传状态检查
+      let noUploading = totalUploadingPhotos === 0;
+      
+      // 如果检测到状态不同步，自动修复
+      if (totalUploadingPhotos > 0 && Object.values(uploadingPhotosBySize).every(count => count === 0)) {
+        console.warn('检测到上传状态不同步，自动修正');
+        setUploadingPhotosBySize({});
+        noUploading = true;
+      }
+      
+      // 显示表单检查结果
+      console.log('表单验证状态:', {
         hasSizes,
         hasPhotos,
         noUploading,
         hasOrderSn,
         hasReceiver,
-        uploadingPhotosBySize,
-        totalUploadingPhotos,
+        allSizesHavePhotos,
         totalPhotos
       });
       
       // 设置表单有效性 - 满足所有条件时才启用提交按钮
-      setFormValid(hasSizes && hasPhotos && noUploading && hasOrderSn && hasReceiver);
+      const isValid = hasSizes && hasPhotos && noUploading && hasOrderSn && hasReceiver && allSizesHavePhotos;
+      setFormValid(isValid);
       
-      return true
+      return isValid;
     } catch (e) {
       console.error('表单验证失败:', e);
       setFormValid(false);
@@ -276,6 +305,21 @@ function OrderUploadPage() {
 
   // 提交订单前验证
   const handleSubmit = () => {
+    // 先检查是否存在状态不同步问题并尝试修复
+    const hasStatusMismatch = totalUploadingPhotos > 0 && Object.values(uploadingPhotosBySize).every(count => count === 0);
+    if (hasStatusMismatch) {
+      console.warn('提交前检测到上传状态不同步，自动修复');
+      setUploadingPhotosBySize({});
+      setTimeout(() => actualSubmit(), 200);
+      return;
+    }
+    
+    // 实际的提交逻辑
+    actualSubmit();
+  };
+  
+  // 实际执行提交验证的函数
+  const actualSubmit = () => {
     form.validateFields().then(values => {
       if (selectedSizes.length === 0) {
         message.error('请至少选择一种尺寸');
@@ -299,6 +343,15 @@ function OrderUploadPage() {
       
       // 检查是否有未上传完的照片
       if (totalUploadingPhotos > 0) {
+        // 再次进行状态不同步检查
+        const hasStatusMismatch = Object.values(uploadingPhotosBySize).every(count => count === 0);
+        if (hasStatusMismatch) {
+          // 自动修复状态并继续提交
+          setUploadingPhotosBySize({});
+          setTimeout(() => setIsModalOpen(true), 200);
+          return;
+        }
+        
         message.warning('还有照片正在上传中，请等待上传完成后提交');
         return;
       }
@@ -336,8 +389,8 @@ function OrderUploadPage() {
       
       // 将图片按尺寸整理，使用服务器返回的URL
       Object.entries(sizePhotos).forEach(([sizeStr, photos]) => {
-        if (photos.length > 0) {
-          // 从尺寸字符串中提取尺寸信息（如"3寸-满版"）
+        // 确保只处理选中的尺寸
+        if (selectedSizes.includes(sizeStr) && photos.length > 0) {
           // 获取尺寸对应的urls
           const urls = photos.map(photo => photo.serverUrl || photo.url);
           
@@ -372,7 +425,10 @@ function OrderUploadPage() {
         // 统计每种尺寸的照片数量
         const sizePhotoCount = {};
         Object.entries(sizePhotos).forEach(([size, photos]) => {
-          sizePhotoCount[size] = photos.length;
+          // 只统计选中的尺寸
+          if (selectedSizes.includes(size)) {
+            sizePhotoCount[size] = photos.length;
+          }
         });
         
         // 关闭对话框
