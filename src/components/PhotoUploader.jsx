@@ -170,14 +170,20 @@ const PhotoUploader = ({
           : '';
           
         message.success(`${file.name} 上传成功${sizeReduction}`);
-        onSuccess?.();
-        
         console.log('文件上传成功:', file.name);
+        
+        // 确保成功回调被调用
+        if (onSuccess && typeof onSuccess === 'function') {
+          onSuccess(response);
+        }
       } else {
         message.error(response.msg || `${file.name} 上传失败`);
-        onError?.(new Error(response.msg || '上传失败'));
-        
         console.error('文件上传API返回错误:', file.name, response);
+        
+        // 确保错误回调被调用
+        if (onError && typeof onError === 'function') {
+          onError(new Error(response.msg || '上传失败'));
+        }
       }
     } catch (error) {
       // 清除超时
@@ -185,7 +191,11 @@ const PhotoUploader = ({
       
       console.error('上传照片失败:', error);
       message.error(`${file.name} 上传失败: ${error.message}`);
-      onError?.(error);
+      
+      // 确保错误回调被调用
+      if (onError && typeof onError === 'function') {
+        onError(error);
+      }
     } finally {
       // 清除上传状态
       console.log('完成上传处理:', file.name);
@@ -324,7 +334,9 @@ const PhotoUploader = ({
         </Upload>
         
         {uploadingCount > 0 && (
-          <Text type="secondary">正在上传，请稍候...</Text>
+          <Text type="secondary">
+            {size}正在上传，请稍候...
+          </Text>
         )}
       </div>
       
