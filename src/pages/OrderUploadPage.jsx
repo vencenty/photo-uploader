@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   Form, Input, Button, Card, Typography, message, 
   Checkbox, Row, Col, Space, 
@@ -122,7 +123,7 @@ function OrderUploadPage() {
                   
                   // 创建照片对象数组
                   newSizePhotos[item.spec] = item.urls.map(url => ({
-                    id: Math.random().toString(36).substr(2, 9),
+                    id: uuidv4(),
                     name: url.split('/').pop() || '照片',
                     url: uploadConfig.imageProxyUrl + url,
                     serverUrl: url,
@@ -247,8 +248,20 @@ function OrderUploadPage() {
           sizePhotos[size] && sizePhotos[size].length > 0
         );
         
+        // 显示表单检查结果以便调试
+        console.log('表单验证状态:', {
+          hasSizes,
+          hasPhotos,
+          noUploading,
+          allSizesHavePhotos,
+          uploadingPhotos,
+          totalPhotos
+        });
+        
+        // 设置表单有效性
         setFormValid(hasSizes && hasPhotos && noUploading && allSizesHavePhotos);
       } catch (e) {
+        console.error('表单验证失败:', e);
         setFormValid(false);
       }
     };

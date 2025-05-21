@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Upload, Button, message, Typography, Card, Row, Col, Tag, Progress, Image } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Upload, Button, message, Typography, Card, Row, Col, Tag, Image } from 'antd';
 import { 
   PictureOutlined, DeleteOutlined, CompressOutlined, 
-  LoadingOutlined, ClockCircleOutlined, 
   ScissorOutlined 
 } from '@ant-design/icons';
 import { uploadPhoto } from '../services/api';
@@ -14,6 +13,9 @@ const { processImageBeforeUpload, isCompressionNeeded } = imageCompressor;
 import { uploadConfig } from '../config/app.config';
 
 const { Text } = Typography;
+
+// 最大并发上传数量
+const MAX_CONCURRENT_UPLOADS = 3;
 
 /**
  * 照片上传组件
@@ -28,61 +30,94 @@ const PhotoUploader = ({
 }) => {
   // 内部上传状态
   const [uploadingFiles, setUploadingFiles] = useState([]);
-  // 上传进度状态
-  const [progressStatus, setProgressStatus] = useState({});
-  // 等待上传的文件队列
-  const [waitingFiles, setWaitingFiles] = useState([]);
   // 裁剪相关状态
   const [cropperVisible, setCropperVisible] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
+  // 等待上传的文件队列
+  const [fileQueue, setFileQueue] = useState([]);
+  // 当前活跃上传数
+  const [activeUploads, setActiveUploads] = useState(0);
+  
+  // 监听队列和活跃上传数的变化，自动处理队列
+  useEffect(() => {
+    processQueue();
+  }, [fileQueue, activeUploads]);
+  
+  // 处理上传队列
+  const processQueue = () => {
+    // 如果队列为空或者已达最大并发数，不处理
+    if (fileQueue.length === 0 || activeUploads >= MAX_CONCURRENT_UPLOADS) {
+      return;
+    }
+    
+    // 可以继续上传的数量
+    const availableSlots = MAX_CONCURRENT_UPLOADS - activeUploads;
+    // 从队列中取出文件开始上传
+    const filesToUpload = fileQueue.slice(0, availableSlots);
+    // 更新队列
+    setFileQueue(prev => prev.slice(availableSlots));
+    
+    // 开始上传文件
+    filesToUpload.forEach(fileInfo => {
+      uploadFile(fileInfo.file, fileInfo.onSuccess, fileInfo.onError, fileInfo.onProgress);
+    });
+  };
+  
+  // 在上传前验证照片
+  const beforeUpload = (file) => {
+    // 确保文件是图片类型
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error(`${file.name} 不是有效的图片文件`);
+      return Upload.LIST_IGNORE;
+    }
+    
+    return true;
+  };
   
   // 处理照片上传
   const customRequest = async (options) => {
     const { file, onSuccess, onError, onProgress } = options;
     
-    // 检查是否有照片正在上传
-    if (uploadingCount > 0) {
-      // 添加到等待队列
-      setWaitingFiles(prev => [...prev, file]);
-      message.info(`${file.name} 已加入上传队列，将在当前上传完成后自动开始`);
-      return;
-    }
+    // 将文件添加到上传队列
+    setFileQueue(prev => [...prev, { file, onSuccess, onError, onProgress }]);
     
-    // 执行上传
-    await uploadFile(file, onSuccess, onError, onProgress);
+    // 如果选择了很多文件，显示提示
+    if (fileQueue.length > 5) {
+      message.info(`已添加文件到上传队列，将按顺序上传，请耐心等待`);
+    }
   };
   
   // 上传单个文件
   const uploadFile = async (file, onSuccess, onError, onProgress) => {
-    // 增加上传中计数
-    onUploadingCountChange(prev => prev + 1);
-    setUploadingFiles(prev => [...prev, file]);
+    console.log('开始上传文件', file.name, '当前活跃上传数:', activeUploads);
     
-    // 初始化进度状态
-    setProgressStatus(prev => ({
-      ...prev,
-      [file.uid]: { percent: 0, status: 'active', fileName: file.name }
-    }));
+    // 增加上传中计数
+    setActiveUploads(prev => prev + 1);
+    onUploadingCountChange(prev => {
+      const newCount = prev + 1;
+      console.log('更新上传计数:', prev, '->', newCount);
+      return newCount;
+    });
+    setUploadingFiles(prev => [...prev, file]);
     
     // 设置上传超时
     const uploadTimeout = setTimeout(() => {
       message.error(`${file.name} 上传超时，请检查网络连接后重试`);
       onError?.(new Error('上传超时'));
-      onUploadingCountChange(prev => Math.max(0, prev - 1));
-      setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
-      setProgressStatus(prev => {
-        const updated = { ...prev };
-        delete updated[file.uid];
-        return updated;
+      
+      onUploadingCountChange(prev => {
+        const newCount = Math.max(0, prev - 1);
+        console.log('更新上传计数(超时):', prev, '->', newCount);
+        return newCount;
       });
       
-      // 继续上传队列中的下一个文件
-      processNextFileInQueue();
-    }, uploadConfig.timeout);
+      setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
+      setActiveUploads(prev => Math.max(0, prev - 1));
+    }, 60000); // 60秒超时
     
     try {
       // 显示初始进度
-      updateProgress(file.uid, 10);
       onProgress?.({ percent: 10 });
       
       // 检查是否需要压缩
@@ -91,29 +126,16 @@ const PhotoUploader = ({
       // 处理并压缩图片
       const processedFile = await processImageBeforeUpload(file);
       
-      // 更新进度状态 - 压缩完成
-      updateProgress(file.uid, 30, '图片已压缩，正在上传...');
+      // 更新进度
       onProgress?.({ percent: 30 });
-      
-      // 模拟真实的进度更新
-      const progressInterval = setInterval(() => {
-        const randomIncrement = Math.floor(Math.random() * 5) + 1;
-        const currentPercent = progressStatus[file.uid]?.percent || 30;
-        const newPercent = Math.min(95, currentPercent + randomIncrement);
-        
-        updateProgress(file.uid, newPercent);
-        onProgress?.({ percent: newPercent });
-      }, 800);
       
       // 调用API上传照片
       const response = await uploadPhoto(processedFile);
       
-      // 清除超时和进度间隔
+      // 清除超时
       clearTimeout(uploadTimeout);
-      clearInterval(progressInterval);
       
       // 显示完成进度
-      updateProgress(file.uid, 100, '上传完成');
       onProgress?.({ percent: 100 });
       
       // 检查API响应是否成功
@@ -150,63 +172,33 @@ const PhotoUploader = ({
         message.success(`${file.name} 上传成功${sizeReduction}`);
         onSuccess?.();
         
-        // 短暂延迟后移除进度条显示
-        setTimeout(() => {
-          setProgressStatus(prev => {
-            const updated = { ...prev };
-            delete updated[file.uid];
-            return updated;
-          });
-        }, 2000);
+        console.log('文件上传成功:', file.name);
       } else {
-        updateProgress(file.uid, 100, '上传失败', 'exception');
         message.error(response.msg || `${file.name} 上传失败`);
         onError?.(new Error(response.msg || '上传失败'));
+        
+        console.error('文件上传API返回错误:', file.name, response);
       }
     } catch (error) {
       // 清除超时
       clearTimeout(uploadTimeout);
-      
-      // 更新进度状态为错误
-      updateProgress(file.uid, 100, error.message, 'exception');
       
       console.error('上传照片失败:', error);
       message.error(`${file.name} 上传失败: ${error.message}`);
       onError?.(error);
     } finally {
       // 清除上传状态
-      onUploadingCountChange(prev => Math.max(0, prev - 1));
+      console.log('完成上传处理:', file.name);
+      
+      onUploadingCountChange(prev => {
+        const newCount = Math.max(0, prev - 1);
+        console.log('更新上传计数(完成):', prev, '->', newCount);
+        return newCount;
+      });
+      
       setUploadingFiles(prev => prev.filter(f => f.uid !== file.uid));
-      
-      // 处理队列中的下一个文件
-      processNextFileInQueue();
+      setActiveUploads(prev => Math.max(0, prev - 1));
     }
-  };
-  
-  // 处理队列中的下一个文件
-  const processNextFileInQueue = () => {
-    if (waitingFiles.length > 0) {
-      const nextFile = waitingFiles[0];
-      setWaitingFiles(prev => prev.slice(1));
-      
-      // 短暂延迟后开始上传下一个文件
-      setTimeout(() => {
-        uploadFile(nextFile);
-      }, 500);
-    }
-  };
-  
-  // 更新进度状态的辅助函数
-  const updateProgress = (fileUid, percent, message = null, status = 'active') => {
-    setProgressStatus(prev => ({
-      ...prev,
-      [fileUid]: { 
-        ...prev[fileUid],
-        percent, 
-        status,
-        message: message || prev[fileUid]?.message
-      }
-    }));
   };
   
   // 处理删除照片
@@ -312,84 +304,29 @@ const PhotoUploader = ({
   
   return (
     <div>
-      <Upload
-        listType="picture-card"
-        accept="image/*"
-        multiple={true}
-        customRequest={customRequest}
-        showUploadList={false}
-        disabled={false}
-        style={{ width: '100%' }}
-      >
-        <div style={{ textAlign: 'center', width: '100%' }}>
-          <PictureOutlined style={{ fontSize: isMobile ? 20 : 24 }} />
-          <div style={{ marginTop: 8, fontSize: isMobile ? 12 : 14 }}>
-            {uploadingCount > 0 
-              ? "正在上传..." 
-              : "上传照片"}
-          </div>
-        </div>
-      </Upload>
-      
-      {/* 上传状态信息区域 */}
-      {(uploadingFiles.length > 0 || waitingFiles.length > 0) && (
-        <div style={{ margin: '16px 0', background: '#f5f5f5', padding: '12px', borderRadius: '8px' }}>
-          <div style={{ marginBottom: '8px' }}>
-            <Text strong style={{ fontSize: isMobile ? 13 : 14 }}>
-              上传进度
-              {waitingFiles.length > 0 && ` (队列中: ${waitingFiles.length})`}
-            </Text>
-          </div>
-          
-          {/* 上传中的文件进度 */}
-          {Object.entries(progressStatus).map(([fileUid, { percent, status, fileName, message }]) => (
-            <div key={fileUid} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text ellipsis style={{ width: '70%', fontSize: isMobile ? 12 : 13 }}>
-                  <LoadingOutlined style={{ marginRight: 6, color: status === 'exception' ? '#ff4d4f' : '#1890ff' }} />
-                  {fileName}
-                </Text>
-                <Text style={{ fontSize: isMobile ? 12 : 13, color: status === 'exception' ? '#ff4d4f' : '#1890ff' }}>
-                  {percent}%
-                </Text>
-              </div>
-              <Progress 
-                percent={percent} 
-                status={status} 
-                strokeColor={status === 'exception' ? '#ff4d4f' : '#1890ff'}
-                size="small" 
-              />
-              {message && (
-                <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12, display: 'block', marginTop: 2 }}>
-                  {message}
-                </Text>
-              )}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+        <Upload
+          listType="picture-card"
+          accept="image/*"
+          multiple={true}
+          customRequest={customRequest}
+          beforeUpload={beforeUpload}
+          showUploadList={false}
+          disabled={uploadingCount > 0}
+          style={{ width: 'auto' }}
+        >
+          <div style={{ textAlign: 'center', width: '104px', height: '104px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <PictureOutlined style={{ fontSize: isMobile ? 20 : 24 }} />
+            <div style={{ marginTop: 8, fontSize: isMobile ? 12 : 14 }}>
+              {uploadingCount > 0 ? "正在上传..." : "上传照片"}
             </div>
-          ))}
-          
-          {/* 等待中的文件 - 只显示前3个 */}
-          {waitingFiles.length > 0 && (
-            <div style={{ marginTop: '10px' }}>
-              <Text type="secondary" style={{ fontSize: isMobile ? 12 : 13, display: 'block', marginBottom: 5 }}>
-                等待上传:
-              </Text>
-              {waitingFiles.slice(0, 3).map((file, index) => (
-                <div key={file.uid || index} style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                  <ClockCircleOutlined style={{ color: '#faad14', marginRight: 6 }} />
-                  <Text ellipsis style={{ width: '90%', fontSize: isMobile ? 12 : 13, color: '#faad14' }}>
-                    {file.name} - 队列中
-                  </Text>
-                </div>
-              ))}
-              {waitingFiles.length > 3 && (
-                <Text type="secondary" style={{ fontSize: isMobile ? 11 : 12 }}>
-                  还有 {waitingFiles.length - 3} 个文件在队列中...
-                </Text>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        </Upload>
+        
+        {uploadingCount > 0 && (
+          <Text type="secondary">正在上传，请稍候...</Text>
+        )}
+      </div>
       
       {/* 照片预览区域 - 使用Ant Design的Image组件 */}
       {photos.length > 0 && (
