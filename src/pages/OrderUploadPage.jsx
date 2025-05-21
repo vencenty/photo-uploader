@@ -245,26 +245,26 @@ function OrderUploadPage() {
       // 检查是否有正在上传的照片
       const noUploading = totalUploadingPhotos === 0;
       
-      // 检查是否每个已选尺寸都上传了照片
-      const allSizesHavePhotos = selectedSizes.every(size => 
-        sizePhotos[size] && sizePhotos[size].length > 0
-      );
+      // 检查order_sn和receiver是否不为空
+      const hasOrderSn = !!orderInfo.order_sn;
+      const hasReceiver = !!orderInfo.receiver;
       
       // 显示表单检查结果以便调试
       console.log('表单验证状态(手动检查):', {
         hasSizes,
         hasPhotos,
         noUploading,
-        allSizesHavePhotos,
+        hasOrderSn,
+        hasReceiver,
         uploadingPhotosBySize,
         totalUploadingPhotos,
         totalPhotos
       });
       
-      // 设置表单有效性
-      setFormValid(hasSizes && hasPhotos && noUploading && allSizesHavePhotos);
+      // 设置表单有效性 - 满足所有条件时才启用提交按钮
+      setFormValid(hasSizes && hasPhotos && noUploading && hasOrderSn && hasReceiver);
       
-      return hasSizes && hasPhotos && noUploading && allSizesHavePhotos;
+      return true
     } catch (e) {
       console.error('表单验证失败:', e);
       setFormValid(false);
@@ -284,6 +284,16 @@ function OrderUploadPage() {
       
       if (totalPhotos === 0) {
         message.error('请至少上传一张照片');
+        return;
+      }
+      
+      if (!orderInfo.order_sn) {
+        message.error('请输入订单号');
+        return;
+      }
+      
+      if (!orderInfo.receiver) {
+        message.error('请输入收货人');
         return;
       }
       
@@ -512,9 +522,15 @@ function OrderUploadPage() {
                   ? "有照片正在上传中，请等待上传完成"
                   : totalPhotos === 0
                     ? "请至少上传一张照片"
-                    : selectedSizes.some(size => !sizePhotos[size] || sizePhotos[size].length === 0)
-                      ? "每个选中的尺寸都需要上传照片"
-                      : "请填写必要的订单信息"
+                    : selectedSizes.length === 0
+                      ? "请至少选择一种尺寸"
+                      : !orderInfo.order_sn
+                        ? "请输入订单号"
+                        : !orderInfo.receiver
+                          ? "请输入收货人"
+                          : selectedSizes.some(size => !sizePhotos[size] || sizePhotos[size].length === 0)
+                            ? "每个选中的尺寸都需要上传照片"
+                            : "请填写必要的订单信息"
                 : ""
             }>
               <Button
