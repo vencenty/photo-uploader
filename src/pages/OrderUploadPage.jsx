@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -74,13 +74,11 @@ function OrderUploadPage() {
   const [uploadingPhotosBySize, setUploadingPhotosBySize] = useState({});
   
   // 计算总上传数
-  const totalUploadingPhotos = useMemo(() => {
+  const calcTotalUploading = useCallback(() => {
+    console.log("计算总上传数:", uploadingPhotosBySize);
     return Object.values(uploadingPhotosBySize).reduce((total, count) => total + count, 0);
   }, [uploadingPhotosBySize]);
   
-  // 添加表单是否完整有效的状态
-  const [formValid, setFormValid] = useState(false);
-
   // 计算总照片数
   useEffect(() => {
     let total = 0;
@@ -91,12 +89,6 @@ function OrderUploadPage() {
       }
     });
     setTotalPhotos(total);
-    
-    // 照片数量变化时，立即触发表单验证
-    // 这样当删除照片时也能及时更新按钮状态
-    setTimeout(() => {
-      checkFormValidity();
-    }, 0);
   }, [sizePhotos, selectedSizes]);
 
   // 查询订单信息（从API获取）
@@ -241,66 +233,22 @@ function OrderUploadPage() {
         [size]: newCount
       };
       
-      // 当上传计数发生变化并且变为0时，手动触发一次表单验证
-      // 这有助于解决上传完成后按钮没有启用的问题
-      const allFinished = Object.values(result).every(count => count === 0);
-      if (allFinished && currentCount > 0 && newCount === 0) {
-        // 使用setTimeout确保状态更新后再检查表单有效性
-        setTimeout(() => {
-          checkFormValidity();
-        }, 100);
-      }
+      console.log(`上传计数更新 [${size}]: ${currentCount} -> ${newCount}`, result);
+      
+      // 无论计数如何变化，都立即触发检查
+      // 使用较短的超时确保状态及时更新
+      setTimeout(() => {
+        // 检查是否所有上传都已完成
+        const allFinished = Object.values(result).every(count => count === 0);
+        console.log('所有上传是否完成:', allFinished);
+        
+        // 计算总上传数
+        const total = Object.values(result).reduce((sum, count) => sum + count, 0);
+        console.log('当前总上传数:', total);
+      }, 50);
       
       return result;
     });
-  };
-  
-  // 提取检查表单有效性的函数，以便可以手动调用
-  const checkFormValidity = async () => {
-    try {
-      // 校验表单字段
-      await form.validateFields(['order_sn', 'receiver']);
-      
-      // 基本条件检查
-      const hasOrderSn = !!orderInfo.order_sn;
-      const hasReceiver = !!orderInfo.receiver;
-      
-      // 直接重新计算上传状态，确保数据一致性
-      const uploadingCounts = Object.values(uploadingPhotosBySize);
-      const calculatedTotalUploading = uploadingCounts.reduce((sum, count) => sum + count, 0);
-      
-      // 照片是否全部上传完成检查
-      const noUploading = calculatedTotalUploading === 0;
-      
-      // 显示表单检查结果
-      console.log('表单验证状态:', {
-        hasOrderSn,
-        hasReceiver,
-        noUploading,
-        totalPhotos,
-        totalUploadingPhotos,
-        calculatedTotalUploading,
-        uploadingPhotosBySize
-      });
-      
-      // 只要表单有值并且没有正在上传的照片，即可启用提交按钮
-      const isValid = hasOrderSn && hasReceiver && noUploading && totalPhotos > 0;
-      setFormValid(isValid);
-      
-      return isValid;
-    } catch (e) {
-      console.error('表单验证失败:', e);
-      setFormValid(false);
-      return false;
-    }
-  };
-
-  // 这些函数已移至 PhotoUploader 组件
-
-  // 提交订单前验证
-  const handleSubmit = () => {
-    // 直接执行提交验证
-    actualSubmit();
   };
   
   // 实际执行提交验证的函数
@@ -329,12 +277,9 @@ function OrderUploadPage() {
         return;
       }
       
-      // 直接计算当前上传状态
-      const uploadingCounts = Object.values(uploadingPhotosBySize);
-      const calculatedTotalUploading = uploadingCounts.reduce((sum, count) => sum + count, 0);
-      
       // 检查是否有未上传完的照片
-      if (calculatedTotalUploading > 0) {
+      const currentTotalUploading = calcTotalUploading();
+      if (currentTotalUploading > 0) {
         message.warning('还有照片正在上传中，请等待上传完成后提交');
         return;
       }
@@ -346,12 +291,12 @@ function OrderUploadPage() {
       message.error('表单验证失败，请检查填写的信息');
     });
   };
-  
-  // 检查表单是否有效
-  useEffect(() => {
-    console.log('触发表单状态检查，依赖项发生变化');
-    checkFormValidity();
-  }, [form, selectedSizes, totalPhotos, totalUploadingPhotos, uploadingPhotosBySize, sizePhotos]);
+
+  // 提交订单前验证
+  const handleSubmit = () => {
+    // 直接执行提交验证
+    actualSubmit();
+  };
   
   // 确认提交
   const handleConfirmSubmit = async () => {
@@ -388,7 +333,7 @@ function OrderUploadPage() {
         order_sn: orderInfo.order_sn,
         receiver: orderInfo.receiver,
         remark: orderInfo.remark,
-        photos: photosArray // 正确的字段名是photos，不是size_photos
+        photos: photosArray 
       };
       
       // 调用API提交订单
@@ -589,28 +534,28 @@ function OrderUploadPage() {
             />
             
             <Tooltip title={
-              !formValid 
-                ? totalUploadingPhotos > 0
-                  ? "有照片正在上传中，请等待上传完成"
-                  : totalPhotos === 0
-                    ? "请至少上传一张照片"
-                    : !orderInfo.order_sn
-                      ? "请输入订单号"
-                      : !orderInfo.receiver
-                        ? "请输入收货人"
-                        : ""
-                : ""
+              calcTotalUploading() > 0
+                ? "有照片正在上传中，请等待上传完成"
+                : totalPhotos === 0
+                  ? "请至少上传一张照片"
+                  : !orderInfo.order_sn
+                    ? "请输入订单号"
+                    : !orderInfo.receiver
+                      ? "请输入收货人"
+                      : selectedSizes.length === 0
+                        ? "请至少选择一种尺寸"
+                        : "请确保表单信息完整"
             }>
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
                 onClick={handleSubmit}
                 size={isMobile ? "middle" : "large"}
-                loading={totalUploadingPhotos > 0}
-                disabled={!formValid || totalUploadingPhotos > 0}
+                loading={calcTotalUploading() > 0}
+                disabled={!orderInfo.order_sn || !orderInfo.receiver || totalPhotos === 0 || selectedSizes.length === 0}
                 block={isMobile}
               >
-                {totalUploadingPhotos > 0 ? `正在上传 (${totalUploadingPhotos})` : "提交订单"}
+                {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : "提交订单"}
               </Button>
             </Tooltip>
           </div>
