@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Modal, Button, Slider, message, Tooltip, Switch } from 'antd';
+import { Modal, Button, Slider, message, Tooltip, Switch, Spin } from 'antd';
 import { 
   RotateLeftOutlined, RotateRightOutlined, ZoomInOutlined, ZoomOutOutlined,
   UndoOutlined, RedoOutlined, SwapOutlined
@@ -81,6 +81,8 @@ const ImageCropper = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   // 加载状态
   const [isLoading, setIsLoading] = useState(false);
+  // 预加载状态
+  const [isPreloading, setIsPreloading] = useState(true);
   // 裁剪历史记录
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -92,6 +94,51 @@ const ImageCropper = ({
   const [currentAspectRatio, setCurrentAspectRatio] = useState(aspectRatio);
   // 是否已自动调整过宽高比
   const hasAdjustedRef = useRef(false);
+  
+  // 预加载图片并确定方向
+  useEffect(() => {
+    if (visible && image) {
+      setIsPreloading(true);
+      
+      const preloadImage = async () => {
+        try {
+          // 创建图像对象并加载图片
+          const img = await createImage(image);
+          
+          // 检测图片方向
+          const isLandscape = img.naturalWidth > img.naturalHeight;
+          
+          // 根据方向设置正确的裁剪框比例
+          if (isLandscape) {
+            setInvertedAspectRatio(true);
+            setCurrentAspectRatio(1 / aspectRatio);
+          } else {
+            setInvertedAspectRatio(false);
+            setCurrentAspectRatio(aspectRatio);
+          }
+          
+          // 初始化尺寸
+          setMediaSize({
+            width: img.width,
+            height: img.height,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight
+          });
+          
+          hasAdjustedRef.current = true;
+        } catch (error) {
+          console.error('预加载图片失败:', error);
+          // 出错时使用默认设置
+          setInvertedAspectRatio(false);
+          setCurrentAspectRatio(aspectRatio);
+        } finally {
+          setIsPreloading(false);
+        }
+      };
+      
+      preloadImage();
+    }
+  }, [visible, image, aspectRatio]);
   
   // 初始加载时保存初始状态到历史记录
   useEffect(() => {
@@ -108,9 +155,13 @@ const ImageCropper = ({
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setRotation(0);
-      setInvertedAspectRatio(false);
-      setCurrentAspectRatio(aspectRatio);
-      hasAdjustedRef.current = false;
+      
+      // 不在这里重置宽高比，因为已经在预加载阶段处理过了
+      if (!hasAdjustedRef.current) {
+        setInvertedAspectRatio(false);
+        setCurrentAspectRatio(aspectRatio);
+        hasAdjustedRef.current = false;
+      }
     }
   }, [visible, aspectRatio]);
   
@@ -130,21 +181,10 @@ const ImageCropper = ({
     setHistoryIndex(prevIndex => prevIndex + 1);
   }, [historyIndex]);
   
-  // 图片加载完成后的回调
+  // 图片加载完成后的回调（保持现有的onMediaLoaded函数，但不在其中修改裁剪框方向）
   const onMediaLoaded = useCallback((mediaSize) => {
     console.log('媒体加载完成:', mediaSize);
     setMediaSize(mediaSize);
-    
-    // 检测图片方向
-    const isLandscape = mediaSize.naturalWidth > mediaSize.naturalHeight;
-    
-    // 自动调整宽高比，但只在第一次加载时自动调整
-    if (isLandscape && !hasAdjustedRef.current) {
-      console.log('检测到横向照片，自动调整裁剪框');
-      setInvertedAspectRatio(true);
-      setCurrentAspectRatio(1 / aspectRatio);
-      hasAdjustedRef.current = true;
-    }
     
     // 根据容器和图片大小计算适当的初始缩放
     const containerWidth = 800;
@@ -155,7 +195,10 @@ const ImageCropper = ({
     const heightRatio = containerHeight / mediaSize.naturalHeight;
     
     // 选择较小的比例，确保图片在容器中完全可见
-    const optimalZoom = Math.min(widthRatio, heightRatio) * 0.9;
+    // 增加缩放系数，让裁剪框更好地填充图片
+    const isLandscape = mediaSize.naturalWidth > mediaSize.naturalHeight;
+    const scaleFactor = isLandscape ? 1.2 : 0.9;
+    const optimalZoom = Math.min(widthRatio, heightRatio) * scaleFactor;
     
     // 更新缩放级别
     setZoom(Math.max(optimalZoom, 1));
@@ -176,7 +219,7 @@ const ImageCropper = ({
       return newHistory;
     });
     setHistoryIndex(prevIndex => prevIndex + 1);
-  }, [isMobile, historyIndex, aspectRatio]);
+  }, [isMobile, historyIndex]);
   
   // 切换裁剪框宽高比
   const toggleAspectRatio = useCallback(() => {
@@ -309,91 +352,106 @@ const ImageCropper = ({
           type="primary" 
           onClick={createCroppedImage}
           loading={isLoading}
+          disabled={isPreloading}
         >
           确认裁剪
         </Button>,
       ]}
       centered
     >
-      <StyledCropContainer>
-        <ReactCrop
-          image={image}
-          crop={crop}
-          zoom={zoom}
-          rotation={rotation}
-          aspect={currentAspectRatio}
-          onCropChange={onCropChange}
-          onZoomChange={onZoomChange}
-          onCropComplete={handleCropComplete}
-          onMediaLoaded={onMediaLoaded}
-          objectFit="contain"
-          showGrid={true}
-        />
-      </StyledCropContainer>
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
-        <HistoryButtons>
-          <Tooltip title="撤销">
-            <Button 
-              icon={<UndoOutlined />} 
-              onClick={handleUndo} 
-              disabled={historyIndex <= 0}
-              size={isMobile ? "small" : "middle"}
+      {isPreloading ? (
+        <div style={{ 
+          height: isMobile ? 300 : 400, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          background: '#f0f0f0'
+        }}>
+          <Spin tip="正在准备图片..." />
+        </div>
+      ) : (
+        <>
+          <StyledCropContainer>
+            <ReactCrop
+              image={image}
+              crop={crop}
+              zoom={zoom}
+              rotation={rotation}
+              aspect={currentAspectRatio}
+              onCropChange={onCropChange}
+              onZoomChange={onZoomChange}
+              onCropComplete={handleCropComplete}
+              onMediaLoaded={onMediaLoaded}
+              objectFit="contain"
+              showGrid={true}
             />
-          </Tooltip>
-          <Tooltip title="重做">
-            <Button 
-              icon={<RedoOutlined />} 
-              onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
-              size={isMobile ? "small" : "middle"}
-            />
-          </Tooltip>
-        </HistoryButtons>
-        
-        <Tooltip title="切换裁剪框方向">
-          <Button 
-            icon={<SwapOutlined />} 
-            onClick={toggleAspectRatio}
-            size={isMobile ? "small" : "middle"}
-          >
-            {!isMobile && "切换裁剪框"}
-          </Button>
-        </Tooltip>
-      </div>
-      
-      <Controls>
-        <ControlGroup>
-          <Button 
-            icon={<RotateLeftOutlined />} 
-            onClick={() => handleRotate('left')}
-            size={isMobile ? "small" : "middle"}
-          >
-            {!isMobile && "向左旋转"}
-          </Button>
-          <Button 
-            icon={<RotateRightOutlined />} 
-            onClick={() => handleRotate('right')}
-            size={isMobile ? "small" : "middle"}
-          >
-            {!isMobile && "向右旋转"}
-          </Button>
-        </ControlGroup>
-        
-        <ControlGroup>
-          <ZoomOutOutlined />
-          <div className="slider-container">
-            <Slider
-              min={1}
-              max={3}
-              step={0.1}
-              value={zoom}
-              onChange={setZoom}
-            />
+          </StyledCropContainer>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+            <HistoryButtons>
+              <Tooltip title="撤销">
+                <Button 
+                  icon={<UndoOutlined />} 
+                  onClick={handleUndo} 
+                  disabled={historyIndex <= 0}
+                  size={isMobile ? "small" : "middle"}
+                />
+              </Tooltip>
+              <Tooltip title="重做">
+                <Button 
+                  icon={<RedoOutlined />} 
+                  onClick={handleRedo}
+                  disabled={historyIndex >= history.length - 1}
+                  size={isMobile ? "small" : "middle"}
+                />
+              </Tooltip>
+            </HistoryButtons>
+            
+            <Tooltip title="切换裁剪框方向">
+              <Button 
+                icon={<SwapOutlined />} 
+                onClick={toggleAspectRatio}
+                size={isMobile ? "small" : "middle"}
+              >
+                {!isMobile && "切换裁剪框"}
+              </Button>
+            </Tooltip>
           </div>
-          <ZoomInOutlined />
-        </ControlGroup>
-      </Controls>
+          
+          <Controls>
+            <ControlGroup>
+              <Button 
+                icon={<RotateLeftOutlined />} 
+                onClick={() => handleRotate('left')}
+                size={isMobile ? "small" : "middle"}
+              >
+                {!isMobile && "向左旋转"}
+              </Button>
+              <Button 
+                icon={<RotateRightOutlined />} 
+                onClick={() => handleRotate('right')}
+                size={isMobile ? "small" : "middle"}
+              >
+                {!isMobile && "向右旋转"}
+              </Button>
+            </ControlGroup>
+            
+            <ControlGroup>
+              <ZoomOutOutlined />
+              <div className="slider-container">
+                <Slider
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  value={zoom}
+                  onChange={setZoom}
+                />
+              </div>
+              <ZoomInOutlined />
+            </ControlGroup>
+          </Controls>
+        </>
+      )}
     </Modal>
   );
 };
