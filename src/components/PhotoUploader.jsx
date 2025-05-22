@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Upload, Button, message, Typography, Card, Row, Col, Tag, Image } from 'antd';
 import { 
   PictureOutlined, DeleteOutlined, CompressOutlined, 
@@ -32,26 +32,52 @@ const PhotoUploader = ({
   const [cropperVisible, setCropperVisible] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
   
-  // 在上传前验证照片
-  const beforeUpload = (file) => {
-    // 确保文件是图片类型
-    const isImage = file.type.startsWith('image/');
-    if (!isImage) {
-      message.error(`${file.name} 不是有效的图片文件`);
-      return Upload.LIST_IGNORE;
+  // 添加上传队列管理
+  const uploadQueueRef = useRef([]);
+  const activeUploadsRef = useRef(0);
+  
+  // 处理队列中的下一个上传任务
+  const processNextUpload = () => {
+    if (uploadQueueRef.current.length === 0 || activeUploadsRef.current >= MAX_CONCURRENT_UPLOADS) {
+      return;
     }
     
-    return true;
+    // 从队列中获取一个上传任务
+    const nextUpload = uploadQueueRef.current.shift();
+    
+    // 增加活跃上传数量
+    activeUploadsRef.current += 1;
+    
+    // 执行上传任务
+    const { file, onSuccess, onError, onProgress } = nextUpload;
+    
+    console.log('开始上传队列中的文件:', file.name, '当前活跃上传数:', activeUploadsRef.current);
+    
+    // 开始处理上传
+    processFileUpload(file, onProgress, (response) => {
+      // 完成后减少活跃上传数量
+      activeUploadsRef.current -= 1;
+      
+      // 调用原始回调
+      if (onSuccess) onSuccess(response);
+      
+      // 处理队列中的下一个上传
+      processNextUpload();
+    }, (error) => {
+      // 错误时减少活跃上传数量
+      activeUploadsRef.current -= 1;
+      
+      // 调用原始错误回调
+      if (onError) onError(error);
+      
+      // 继续处理队列中的下一个上传
+      processNextUpload();
+    });
   };
   
-  // 处理照片上传
-  const customRequest = async (options) => {
-    const { file, onSuccess, onError, onProgress } = options;
-    
-    console.log('开始准备上传文件:', file.name);
-    
-    // 设置上传状态为正在上传
-    onUploadingCountChange(1);
+  // 处理单个文件上传
+  const processFileUpload = async (file, onProgress, onSuccess, onError) => {
+    console.log('处理文件上传:', file.name);
     
     // 显示初始进度
     onProgress?.({ percent: 10 });
@@ -105,30 +131,66 @@ const PhotoUploader = ({
           
         message.success(`${file.name} 上传成功${sizeReduction}`);
         
-        // 确保成功回调被调用
-        if (onSuccess && typeof onSuccess === 'function') {
-          onSuccess(response);
-        }
+        // 调用成功回调
+        onSuccess(response);
       } else {
         message.error(response.msg || `${file.name} 上传失败`);
         
-        // 确保错误回调被调用
-        if (onError && typeof onError === 'function') {
-          onError(new Error(response.msg || '上传失败'));
-        }
+        // 调用错误回调
+        onError(new Error(response.msg || '上传失败'));
       }
     } catch (error) {
       console.error('上传照片失败:', error);
       message.error(`${file.name} 上传失败: ${error.message}`);
       
-      // 确保错误回调被调用
-      if (onError && typeof onError === 'function') {
-        onError(error);
-      }
-    } finally {
-      // 完全重置上传状态
-      console.log('上传处理完成，重置状态:', file.name);
-      onUploadingCountChange(0);
+      // 调用错误回调
+      onError(error);
+    }
+  };
+  
+  // 在上传前验证照片
+  const beforeUpload = (file) => {
+    // 确保文件是图片类型
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error(`${file.name} 不是有效的图片文件`);
+      return Upload.LIST_IGNORE;
+    }
+    
+    return true;
+  };
+  
+  // 处理照片上传
+  const customRequest = async (options) => {
+    const { file, onSuccess, onError, onProgress } = options;
+    
+    console.log('文件添加到上传队列:', file.name);
+    
+    // 更新上传计数
+    const currentCount = uploadingCount || 0;
+    onUploadingCountChange(currentCount + 1);
+    
+    // 将上传任务添加到队列
+    uploadQueueRef.current.push({
+      file,
+      onSuccess: (response) => {
+        // 重置上传状态
+        onUploadingCountChange(prev => Math.max(0, prev - 1));
+        
+        if (onSuccess) onSuccess(response);
+      },
+      onError: (error) => {
+        // 重置上传状态
+        onUploadingCountChange(prev => Math.max(0, prev - 1));
+        
+        if (onError) onError(error);
+      },
+      onProgress
+    });
+    
+    // 尝试处理队列
+    if (activeUploadsRef.current < MAX_CONCURRENT_UPLOADS) {
+      processNextUpload();
     }
   };
   
