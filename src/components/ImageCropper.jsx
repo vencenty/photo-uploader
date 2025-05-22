@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Modal, Button, Slider, message, Tooltip } from 'antd';
+import { Modal, Button, Slider, message, Tooltip, Switch } from 'antd';
 import { 
   RotateLeftOutlined, RotateRightOutlined, ZoomInOutlined, ZoomOutOutlined,
-  UndoOutlined, RedoOutlined
+  UndoOutlined, RedoOutlined, SwapOutlined
 } from '@ant-design/icons';
 import ReactCrop from 'react-easy-crop';
 import styled from 'styled-components';
@@ -84,6 +84,14 @@ const ImageCropper = ({
   // 裁剪历史记录
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  // 图片尺寸
+  const [mediaSize, setMediaSize] = useState(null);
+  // 是否翻转宽高比
+  const [invertedAspectRatio, setInvertedAspectRatio] = useState(false);
+  // 当前使用的裁剪宽高比
+  const [currentAspectRatio, setCurrentAspectRatio] = useState(aspectRatio);
+  // 是否已自动调整过宽高比
+  const hasAdjustedRef = useRef(false);
   
   // 初始加载时保存初始状态到历史记录
   useEffect(() => {
@@ -100,8 +108,11 @@ const ImageCropper = ({
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setRotation(0);
+      setInvertedAspectRatio(false);
+      setCurrentAspectRatio(aspectRatio);
+      hasAdjustedRef.current = false;
     }
-  }, [visible]);
+  }, [visible, aspectRatio]);
   
   // 保存当前状态到历史记录
   const saveToHistory = useCallback((newState) => {
@@ -121,6 +132,20 @@ const ImageCropper = ({
   
   // 图片加载完成后的回调
   const onMediaLoaded = useCallback((mediaSize) => {
+    console.log('媒体加载完成:', mediaSize);
+    setMediaSize(mediaSize);
+    
+    // 检测图片方向
+    const isLandscape = mediaSize.naturalWidth > mediaSize.naturalHeight;
+    
+    // 自动调整宽高比，但只在第一次加载时自动调整
+    if (isLandscape && !hasAdjustedRef.current) {
+      console.log('检测到横向照片，自动调整裁剪框');
+      setInvertedAspectRatio(true);
+      setCurrentAspectRatio(1 / aspectRatio);
+      hasAdjustedRef.current = true;
+    }
+    
     // 根据容器和图片大小计算适当的初始缩放
     const containerWidth = 800;
     const containerHeight = isMobile ? 300 : 400;
@@ -151,7 +176,16 @@ const ImageCropper = ({
       return newHistory;
     });
     setHistoryIndex(prevIndex => prevIndex + 1);
-  }, [isMobile, historyIndex]);
+  }, [isMobile, historyIndex, aspectRatio]);
+  
+  // 切换裁剪框宽高比
+  const toggleAspectRatio = useCallback(() => {
+    setInvertedAspectRatio(prev => {
+      const newValue = !prev;
+      setCurrentAspectRatio(newValue ? 1 / aspectRatio : aspectRatio);
+      return newValue;
+    });
+  }, [aspectRatio]);
   
   // 撤销操作
   const handleUndo = () => {
@@ -234,10 +268,12 @@ const ImageCropper = ({
 
     setIsLoading(true);
     try {
+      // 注意：如果宽高比已反转，我们需要在裁剪时进行适当处理
       const croppedBlob = await getCroppedImg(
         image,
         croppedAreaPixels,
-        rotation
+        rotation,
+        invertedAspectRatio  // 传递是否反转宽高比的信息
       );
       
       // 调用完成回调，传入裁剪后的图片blob和文件名
@@ -255,7 +291,7 @@ const ImageCropper = ({
     } finally {
       setIsLoading(false);
     }
-  }, [croppedAreaPixels, rotation, image, onCropComplete, onClose]);
+  }, [croppedAreaPixels, rotation, image, onCropComplete, onClose, invertedAspectRatio]);
 
   return (
     <Modal
@@ -285,7 +321,7 @@ const ImageCropper = ({
           crop={crop}
           zoom={zoom}
           rotation={rotation}
-          aspect={aspectRatio}
+          aspect={currentAspectRatio}
           onCropChange={onCropChange}
           onZoomChange={onZoomChange}
           onCropComplete={handleCropComplete}
@@ -295,24 +331,36 @@ const ImageCropper = ({
         />
       </StyledCropContainer>
       
-      <HistoryButtons>
-        <Tooltip title="撤销">
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+        <HistoryButtons>
+          <Tooltip title="撤销">
+            <Button 
+              icon={<UndoOutlined />} 
+              onClick={handleUndo} 
+              disabled={historyIndex <= 0}
+              size={isMobile ? "small" : "middle"}
+            />
+          </Tooltip>
+          <Tooltip title="重做">
+            <Button 
+              icon={<RedoOutlined />} 
+              onClick={handleRedo}
+              disabled={historyIndex >= history.length - 1}
+              size={isMobile ? "small" : "middle"}
+            />
+          </Tooltip>
+        </HistoryButtons>
+        
+        <Tooltip title="切换裁剪框方向">
           <Button 
-            icon={<UndoOutlined />} 
-            onClick={handleUndo} 
-            disabled={historyIndex <= 0}
+            icon={<SwapOutlined />} 
+            onClick={toggleAspectRatio}
             size={isMobile ? "small" : "middle"}
-          />
+          >
+            {!isMobile && "切换裁剪框"}
+          </Button>
         </Tooltip>
-        <Tooltip title="重做">
-          <Button 
-            icon={<RedoOutlined />} 
-            onClick={handleRedo}
-            disabled={historyIndex >= history.length - 1}
-            size={isMobile ? "small" : "middle"}
-          />
-        </Tooltip>
-      </HistoryButtons>
+      </div>
       
       <Controls>
         <ControlGroup>
@@ -355,9 +403,10 @@ const ImageCropper = ({
  * @param {string} imageSrc 图片URL
  * @param {Object} pixelCrop 裁剪区域数据
  * @param {number} rotation 旋转角度
+ * @param {boolean} inverted 是否反转了宽高比
  * @returns {Promise<Blob>} 裁剪后的图片Blob
  */
-const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0) => {
+const getCroppedImg = async (imageSrc, pixelCrop, rotation = 0, inverted = false) => {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');

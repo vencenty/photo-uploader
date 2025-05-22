@@ -292,8 +292,7 @@ const PhotoUploader = ({
   const aspectRatio = getAspectRatioByName(size);
   
   // 检查是否为满版照片（用于决定是否显示裁剪按钮）
-  // const isFullSizePhoto = size && size.includes('满版');
-  const isFullSizePhoto = false
+  const isFullSizePhoto = size && size.includes('满版');
   
   return (
     <div>

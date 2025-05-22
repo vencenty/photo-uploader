@@ -91,6 +91,12 @@ function OrderUploadPage() {
       }
     });
     setTotalPhotos(total);
+    
+    // 照片数量变化时，立即触发表单验证
+    // 这样当删除照片时也能及时更新按钮状态
+    setTimeout(() => {
+      checkFormValidity();
+    }, 0);
   }, [sizePhotos, selectedSizes]);
 
   // 查询订单信息（从API获取）
@@ -256,41 +262,29 @@ function OrderUploadPage() {
       await form.validateFields(['order_sn', 'receiver']);
       
       // 基本条件检查
-      const hasSizes = selectedSizes.length > 0;
       const hasOrderSn = !!orderInfo.order_sn;
       const hasReceiver = !!orderInfo.receiver;
       
-      // 照片相关检查
-      const hasPhotos = totalPhotos > 0 || totalUploadingPhotos > 0;
+      // 直接重新计算上传状态，确保数据一致性
+      const uploadingCounts = Object.values(uploadingPhotosBySize);
+      const calculatedTotalUploading = uploadingCounts.reduce((sum, count) => sum + count, 0);
       
-      // 检查每个选中的尺寸是否都有照片
-      const allSizesHavePhotos = selectedSizes.every(
-        size => sizePhotos[size] && sizePhotos[size].length > 0
-      );
-      
-      // 上传状态检查
-      let noUploading = totalUploadingPhotos === 0;
-      
-      // 如果检测到状态不同步，自动修复
-      if (totalUploadingPhotos > 0 && Object.values(uploadingPhotosBySize).every(count => count === 0)) {
-        console.warn('检测到上传状态不同步，自动修正');
-        setUploadingPhotosBySize({});
-        noUploading = true;
-      }
+      // 照片是否全部上传完成检查
+      const noUploading = calculatedTotalUploading === 0;
       
       // 显示表单检查结果
       console.log('表单验证状态:', {
-        hasSizes,
-        hasPhotos,
-        noUploading,
         hasOrderSn,
         hasReceiver,
-        allSizesHavePhotos,
-        totalPhotos
+        noUploading,
+        totalPhotos,
+        totalUploadingPhotos,
+        calculatedTotalUploading,
+        uploadingPhotosBySize
       });
       
-      // 设置表单有效性 - 满足所有条件时才启用提交按钮
-      const isValid = hasSizes && hasPhotos && noUploading && hasOrderSn && hasReceiver && allSizesHavePhotos;
+      // 只要表单有值并且没有正在上传的照片，即可启用提交按钮
+      const isValid = hasOrderSn && hasReceiver && noUploading && totalPhotos > 0;
       setFormValid(isValid);
       
       return isValid;
@@ -305,32 +299,20 @@ function OrderUploadPage() {
 
   // 提交订单前验证
   const handleSubmit = () => {
-    // 先检查是否存在状态不同步问题并尝试修复
-    const hasStatusMismatch = totalUploadingPhotos > 0 && Object.values(uploadingPhotosBySize).every(count => count === 0);
-    if (hasStatusMismatch) {
-      console.warn('提交前检测到上传状态不同步，自动修复');
-      setUploadingPhotosBySize({});
-      setTimeout(() => actualSubmit(), 200);
-      return;
-    }
-    
-    // 实际的提交逻辑
+    // 直接执行提交验证
     actualSubmit();
   };
   
   // 实际执行提交验证的函数
   const actualSubmit = () => {
+    // 防止重复提交 - 如果已经在加载状态则不处理
+    if (loading) {
+      message.info('正在处理，请稍候...');
+      return;
+    }
+    
     form.validateFields().then(values => {
-      if (selectedSizes.length === 0) {
-        message.error('请至少选择一种尺寸');
-        return;
-      }
-      
-      if (totalPhotos === 0 && totalUploadingPhotos === 0) {
-        message.error('请至少上传一张照片');
-        return;
-      }
-      
+      // 检查基本表单字段
       if (!orderInfo.order_sn) {
         message.error('请输入订单号');
         return;
@@ -341,28 +323,19 @@ function OrderUploadPage() {
         return;
       }
       
-      // 检查是否有未上传完的照片
-      if (totalUploadingPhotos > 0) {
-        // 再次进行状态不同步检查
-        const hasStatusMismatch = Object.values(uploadingPhotosBySize).every(count => count === 0);
-        if (hasStatusMismatch) {
-          // 自动修复状态并继续提交
-          setUploadingPhotosBySize({});
-          setTimeout(() => setIsModalOpen(true), 200);
-          return;
-        }
-        
-        message.warning('还有照片正在上传中，请等待上传完成后提交');
+      // 检查是否有照片
+      if (totalPhotos === 0) {
+        message.error('请至少上传一张照片');
         return;
       }
       
-      // 检查每个已选尺寸是否都上传了照片
-      const emptySelectedSizes = selectedSizes.filter(size => 
-        !sizePhotos[size] || sizePhotos[size].length === 0
-      );
+      // 直接计算当前上传状态
+      const uploadingCounts = Object.values(uploadingPhotosBySize);
+      const calculatedTotalUploading = uploadingCounts.reduce((sum, count) => sum + count, 0);
       
-      if (emptySelectedSizes.length > 0) {
-        message.warning(`以下尺寸尚未上传照片: ${emptySelectedSizes.join(', ')}`);
+      // 检查是否有未上传完的照片
+      if (calculatedTotalUploading > 0) {
+        message.warning('还有照片正在上传中，请等待上传完成后提交');
         return;
       }
       
@@ -445,11 +418,54 @@ function OrderUploadPage() {
         
         message.success('订单提交成功');
       } else {
-        message.error(response.msg || '订单提交失败');
+        // 处理各种错误情况
+        setIsModalOpen(false); // 无论什么错误都先关闭对话框
+        
+        if (response.code === -1 && response.msg && response.msg.includes('订单已经进入处理流程')) {
+          // 订单已进入处理流程的特殊错误
+          Modal.error({
+            title: '订单无法修改',
+            content: response.msg || '订单已经进入处理流程，无法重新上传图片，如有疑问请联系客服',
+            okText: '知道了'
+          });
+        } else {
+          // 其他错误
+          message.error(response.msg || '订单提交失败');
+        }
       }
     } catch (error) {
       console.error('提交订单失败:', error);
-      message.error('提交订单失败，请稍后重试');
+      
+      // 关闭确认对话框
+      setIsModalOpen(false);
+      
+      // 处理错误情况
+      if (error.response && error.response.data) {
+        // API返回了错误信息
+        const errorData = error.response.data;
+        
+        if (errorData.code === -1 && errorData.msg && errorData.msg.includes('订单已经进入处理流程')) {
+          // 订单已进入处理流程的特殊错误
+          Modal.error({
+            title: '订单无法修改',
+            content: errorData.msg || '订单已经进入处理流程，无法重新上传图片，如有疑问请联系客服',
+            okText: '知道了'
+          });
+        } else {
+          // 其他API错误
+          message.error(errorData.msg || '订单提交失败');
+        }
+      } else if (error.message && error.message.includes('Network Error')) {
+        // 网络错误
+        Modal.error({
+          title: '网络连接错误',
+          content: '提交订单时网络连接异常，请检查网络后重试',
+          okText: '知道了'
+        });
+      } else {
+        // 其他未知错误
+        message.error('提交订单失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -578,15 +594,11 @@ function OrderUploadPage() {
                   ? "有照片正在上传中，请等待上传完成"
                   : totalPhotos === 0
                     ? "请至少上传一张照片"
-                    : selectedSizes.length === 0
-                      ? "请至少选择一种尺寸"
-                      : !orderInfo.order_sn
-                        ? "请输入订单号"
-                        : !orderInfo.receiver
-                          ? "请输入收货人"
-                          : selectedSizes.some(size => !sizePhotos[size] || sizePhotos[size].length === 0)
-                            ? "每个选中的尺寸都需要上传照片"
-                            : "请填写必要的订单信息"
+                    : !orderInfo.order_sn
+                      ? "请输入订单号"
+                      : !orderInfo.receiver
+                        ? "请输入收货人"
+                        : ""
                 : ""
             }>
               <Button
@@ -595,7 +607,7 @@ function OrderUploadPage() {
                 onClick={handleSubmit}
                 size={isMobile ? "middle" : "large"}
                 loading={totalUploadingPhotos > 0}
-                disabled={!formValid}
+                disabled={!formValid || totalUploadingPhotos > 0}
                 block={isMobile}
               >
                 {totalUploadingPhotos > 0 ? `正在上传 (${totalUploadingPhotos})` : "提交订单"}
