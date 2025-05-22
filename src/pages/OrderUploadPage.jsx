@@ -261,7 +261,7 @@ function OrderUploadPage() {
       const hasReceiver = !!orderInfo.receiver;
       
       // 照片相关检查
-      const hasPhotos = totalPhotos > 0;
+      const hasPhotos = totalPhotos > 0 || totalUploadingPhotos > 0;
       
       // 检查每个选中的尺寸是否都有照片
       const allSizesHavePhotos = selectedSizes.every(
@@ -326,7 +326,7 @@ function OrderUploadPage() {
         return;
       }
       
-      if (totalPhotos === 0) {
+      if (totalPhotos === 0 && totalUploadingPhotos === 0) {
         message.error('请至少上传一张照片');
         return;
       }
