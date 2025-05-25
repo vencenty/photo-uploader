@@ -10,6 +10,10 @@ export const PHOTO = [
       "aspectRatio": 5/7
     },
     {
+    "name": "3寸-拍立得",
+    "aspectRatio": 64/55.4
+    },
+    {
       "name": "4寸-满版",
       "aspectRatio": 3/4
     },
@@ -66,7 +70,7 @@ export const PHOTO = [
       "aspectRatio": 1/1.414
     }
   ]
-  
+
 // 获取所有尺寸选项名称，用于尺寸选择
 export const getSizeOptions = () => {
   return PHOTO.map(item => item.name);
