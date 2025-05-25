@@ -291,9 +291,6 @@ const PhotoUploader = ({
   // 获取当前尺寸的宽高比
   const aspectRatio = getAspectRatioByName(size);
   
-  // 检查是否为满版照片（用于决定是否显示裁剪按钮）
-  const isFullSizePhoto = size && size.includes('满版');
-  
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
@@ -392,18 +389,16 @@ const PhotoUploader = ({
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    {/* 只在满版照片上显示裁剪按钮 */}
-                    {isFullSizePhoto && (
-                      <Button 
-                        type="text"
-                        icon={<ScissorOutlined />}
-                        onClick={() => handleCropPhoto(photo)}
-                        size={isMobile ? "small" : "middle"}
-                        style={{ padding: '0 8px' }}
-                      >
-                        裁剪
-                      </Button>
-                    )}
+                    {/* 所有规格的照片都显示裁剪按钮 */}
+                    <Button 
+                      type="text"
+                      icon={<ScissorOutlined />}
+                      onClick={() => handleCropPhoto(photo)}
+                      size={isMobile ? "small" : "middle"}
+                      style={{ padding: '0 8px' }}
+                    >
+                      裁剪
+                    </Button>
                     
                     <Button 
                       type="text"
@@ -411,7 +406,7 @@ const PhotoUploader = ({
                       icon={<DeleteOutlined />}
                       onClick={() => handleDeletePhoto(photo.id)}
                       size={isMobile ? "small" : "middle"}
-                      style={{ padding: '0 8px', marginLeft: 'auto' }}
+                      style={{ padding: '0 8px' }}
                     >
                       删除
                     </Button>

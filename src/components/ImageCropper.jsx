@@ -95,7 +95,7 @@ const ImageCropper = ({
   // 是否已自动调整过宽高比
   const hasAdjustedRef = useRef(false);
   
-  // 预加载图片并确定方向
+  // 预加载图片并智能确定裁剪框方向
   useEffect(() => {
     if (visible && image) {
       setIsPreloading(true);
@@ -106,16 +106,59 @@ const ImageCropper = ({
           const img = await createImage(image);
           
           // 检测图片方向
-          const isLandscape = img.naturalWidth > img.naturalHeight;
+          const imageIsLandscape = img.naturalWidth > img.naturalHeight;
+          const imageAspectRatio = img.naturalWidth / img.naturalHeight;
           
-          // 根据方向设置正确的裁剪框比例
-          if (isLandscape) {
-            setInvertedAspectRatio(true);
-            setCurrentAspectRatio(1 / aspectRatio);
+          // 检测目标裁剪比例的方向
+          const targetIsLandscape = aspectRatio > 1;
+          
+          // 智能选择裁剪框方向：
+          // 1. 如果图片和目标比例方向一致，使用原始比例
+          // 2. 如果图片和目标比例方向不一致，选择更适合的方向
+          let finalAspectRatio;
+          let shouldInvert = false;
+          
+          if (imageIsLandscape === targetIsLandscape) {
+            // 方向一致，使用原始比例
+            finalAspectRatio = aspectRatio;
+            shouldInvert = false;
           } else {
-            setInvertedAspectRatio(false);
-            setCurrentAspectRatio(aspectRatio);
+            // 方向不一致，选择更适合图片的方向
+            if (imageIsLandscape) {
+              // 图片是横向的，但目标比例是竖向的
+              // 比较两种方向哪种更适合
+              const originalFit = Math.min(1 / aspectRatio, imageAspectRatio) / Math.max(1 / aspectRatio, imageAspectRatio);
+              const invertedFit = Math.min(aspectRatio, imageAspectRatio) / Math.max(aspectRatio, imageAspectRatio);
+              
+              if (invertedFit > originalFit) {
+                // 使用横向比例更合适
+                finalAspectRatio = aspectRatio;
+                shouldInvert = true;
+              } else {
+                // 使用竖向比例更合适
+                finalAspectRatio = 1 / aspectRatio;
+                shouldInvert = false;
+              }
+            } else {
+              // 图片是竖向的，但目标比例是横向的
+              // 比较两种方向哪种更适合
+              const originalFit = Math.min(aspectRatio, imageAspectRatio) / Math.max(aspectRatio, imageAspectRatio);
+              const invertedFit = Math.min(1 / aspectRatio, imageAspectRatio) / Math.max(1 / aspectRatio, imageAspectRatio);
+              
+              if (invertedFit > originalFit) {
+                // 使用竖向比例更合适
+                finalAspectRatio = 1 / aspectRatio;
+                shouldInvert = true;
+              } else {
+                // 使用横向比例更合适
+                finalAspectRatio = aspectRatio;
+                shouldInvert = false;
+              }
+            }
           }
+          
+          setInvertedAspectRatio(shouldInvert);
+          setCurrentAspectRatio(finalAspectRatio);
           
           // 初始化尺寸
           setMediaSize({
@@ -181,32 +224,23 @@ const ImageCropper = ({
     setHistoryIndex(prevIndex => prevIndex + 1);
   }, [historyIndex]);
   
-  // 图片加载完成后的回调（保持现有的onMediaLoaded函数，但不在其中修改裁剪框方向）
+  // 图片加载完成后的回调，实现 autoCropArea: 1 效果
   const onMediaLoaded = useCallback((mediaSize) => {
     console.log('媒体加载完成:', mediaSize);
     setMediaSize(mediaSize);
     
-    // 根据容器和图片大小计算适当的初始缩放
-    const containerWidth = 800;
-    const containerHeight = isMobile ? 300 : 400;
-    
-    // 计算适当的缩放比例，使图片在容器中合适显示
-    const widthRatio = containerWidth / mediaSize.naturalWidth;
-    const heightRatio = containerHeight / mediaSize.naturalHeight;
-    
-    // 选择较小的比例，确保图片在容器中完全可见
-    // 增加缩放系数，让裁剪框更好地填充图片
-    const isLandscape = mediaSize.naturalWidth > mediaSize.naturalHeight;
-    const scaleFactor = isLandscape ? 1.2 : 0.9;
-    const optimalZoom = Math.min(widthRatio, heightRatio) * scaleFactor;
+    // 简单实现：使用默认缩放，让 react-easy-crop 自动处理裁剪框大小
+    // react-easy-crop 会根据 aspect 属性自动计算最佳的裁剪框大小
+    // 这样可以实现类似 cropperjs autoCropArea: 1 的效果
+    const defaultZoom = 1;
     
     // 更新缩放级别
-    setZoom(Math.max(optimalZoom, 1));
+    setZoom(defaultZoom);
     
     // 更新历史记录
     const newState = {
       crop: { x: 0, y: 0 },
-      zoom: Math.max(optimalZoom, 1),
+      zoom: defaultZoom,
       rotation: 0
     };
     

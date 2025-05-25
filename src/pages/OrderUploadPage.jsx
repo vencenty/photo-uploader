@@ -12,21 +12,13 @@ import {
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
 import { uploadConfig } from '../config/app.config';
+import { getSizeOptions } from '../config/photo';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-// 支持的尺寸选项
-const sizeOptions = [
-  '3寸-满版', '3寸-留白',
-  '4寸-满版', '4寸-留白',
-  '5寸-满版', '5寸-留白',
-  '6寸-满版', '6寸-留白',
-  '7寸-满版', '7寸-留白',
-  '8寸-满版', '8寸-留白',
-  '10寸-满版', '10寸-留白',
-  '12寸-满版', '12寸-留白'
-];
+// 支持的尺寸选项 - 从配置文件获取
+const sizeOptions = getSizeOptions();
 
 function OrderUploadPage() {
   const navigate = useNavigate();
