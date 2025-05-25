@@ -84,7 +84,7 @@ function App() {
               placement="right"
               onClose={closeMenu}
               open={mobileMenuVisible}
-              bodyStyle={{ padding: 0 }}
+              styles={{ body: { padding: 0 } }}
             >
               <Menu
                 theme="light"

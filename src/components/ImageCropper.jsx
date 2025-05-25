@@ -94,6 +94,8 @@ const ImageCropper = ({
   const [currentAspectRatio, setCurrentAspectRatio] = useState(aspectRatio);
   // 是否已自动调整过宽高比
   const hasAdjustedRef = useRef(false);
+  // 是否已经初始化过媒体尺寸
+  const mediaInitializedRef = useRef(false);
   
   // 预加载图片并智能确定裁剪框方向
   useEffect(() => {
@@ -160,14 +162,6 @@ const ImageCropper = ({
           setInvertedAspectRatio(shouldInvert);
           setCurrentAspectRatio(finalAspectRatio);
           
-          // 初始化尺寸
-          setMediaSize({
-            width: img.width,
-            height: img.height,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight
-          });
-          
           hasAdjustedRef.current = true;
         } catch (error) {
           console.error('预加载图片失败:', error);
@@ -202,8 +196,10 @@ const ImageCropper = ({
       
       // 重置宽高比调整标志，确保每次打开都能重新计算
       hasAdjustedRef.current = false;
+      mediaInitializedRef.current = false; // 重置媒体初始化标志
       setInvertedAspectRatio(false);
       setCurrentAspectRatio(aspectRatio);
+      setMediaSize(null); // 重置媒体尺寸
     }
   }, [visible, aspectRatio]);
   
@@ -223,53 +219,42 @@ const ImageCropper = ({
     setHistoryIndex(prevIndex => prevIndex + 1);
   }, [historyIndex]);
   
-  // 图片加载完成后的回调，实现稳定的 autoCropArea: 1 效果
+  // 图片加载完成后的回调
   const onMediaLoaded = useCallback((mediaSize) => {
-    console.log('媒体加载完成:', mediaSize);
-    setMediaSize(mediaSize);
-    
-    // 计算图片和裁剪框的宽高比
-    const imageAspectRatio = mediaSize.naturalWidth / mediaSize.naturalHeight;
-    const cropAspectRatio = currentAspectRatio;
-    
-    // 计算使裁剪框完全填满图片所需的缩放比例
-    // 这是实现 autoCropArea: 1 的关键
-    let optimalZoom;
-    
-    if (cropAspectRatio > imageAspectRatio) {
-      // 裁剪框比图片更宽，需要放大图片使裁剪框的高度填满图片高度
-      optimalZoom = cropAspectRatio / imageAspectRatio;
-    } else {
-      // 裁剪框比图片更高，需要放大图片使裁剪框的宽度填满图片宽度
-      optimalZoom = imageAspectRatio / cropAspectRatio;
+    // 如果已经初始化过，且图片的真实尺寸没有变化，则直接返回
+    if (mediaInitializedRef.current && 
+        mediaSize.naturalWidth === mediaInitializedRef.current.naturalWidth &&
+        mediaSize.naturalHeight === mediaInitializedRef.current.naturalHeight) {
+      console.log('图片真实尺寸未变化，跳过处理');
+      return;
     }
     
-    // 确保缩放不小于1，并且稍微调整以确保完全贴合
-    const finalZoom = Math.max(optimalZoom, 1);
-    
-    console.log('计算缩放:', {
-      imageAspectRatio,
-      cropAspectRatio,
-      optimalZoom,
-      finalZoom
+    console.log('媒体加载完成:', {
+      width: mediaSize.width,
+      height: mediaSize.height,
+      naturalWidth: mediaSize.naturalWidth,
+      naturalHeight: mediaSize.naturalHeight,
+      timestamp: Date.now(),
+      isFirstTime: !mediaInitializedRef.current
     });
     
-    // 更新缩放级别
-    setZoom(finalZoom);
-    
-    // 重置裁剪位置到中心
-    setCrop({ x: 0, y: 0 });
-    
-    // 更新历史记录
-    const newState = {
-      crop: { x: 0, y: 0 },
-      zoom: finalZoom,
-      rotation: 0
+    // 保存图片的真实尺寸信息
+    const stableMediaSize = {
+      naturalWidth: mediaSize.naturalWidth,
+      naturalHeight: mediaSize.naturalHeight,
+      width: mediaSize.width,
+      height: mediaSize.height
     };
     
-    setHistory([newState]); // 直接设置为新的历史记录
-    setHistoryIndex(0);
-  }, [currentAspectRatio]);
+    // 标记为已初始化，并保存真实尺寸
+    mediaInitializedRef.current = {
+      naturalWidth: mediaSize.naturalWidth,
+      naturalHeight: mediaSize.naturalHeight
+    };
+    
+    console.log('更新媒体尺寸状态');
+    setMediaSize(stableMediaSize);
+  }, []);
     
   // 切换裁剪框宽高比
   const toggleAspectRatio = useCallback(() => {
@@ -392,7 +377,7 @@ const ImageCropper = ({
       open={visible}
       onCancel={onClose}
       width={isMobile ? "95%" : 800}
-      bodyStyle={{ padding: isMobile ? "12px" : "24px" }}
+      styles={{ body: { padding: isMobile ? "12px" : "24px" } }}
       footer={[
         <Button key="cancel" onClick={onClose}>
           取消
@@ -434,6 +419,9 @@ const ImageCropper = ({
               onMediaLoaded={onMediaLoaded}
               objectFit="contain"
               showGrid={true}
+              restrictPosition={true}
+              minZoom={0.1}
+              maxZoom={10}
             />
           </StyledCropContainer>
           
