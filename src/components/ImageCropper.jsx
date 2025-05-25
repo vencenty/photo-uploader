@@ -186,6 +186,7 @@ const ImageCropper = ({
   // 初始加载时保存初始状态到历史记录
   useEffect(() => {
     if (visible) {
+      // 每次打开时重置所有状态
       const initialState = {
         crop: { x: 0, y: 0 },
         zoom: 1,
@@ -199,12 +200,10 @@ const ImageCropper = ({
       setZoom(1);
       setRotation(0);
       
-      // 不在这里重置宽高比，因为已经在预加载阶段处理过了
-      if (!hasAdjustedRef.current) {
-        setInvertedAspectRatio(false);
-        setCurrentAspectRatio(aspectRatio);
-        hasAdjustedRef.current = false;
-      }
+      // 重置宽高比调整标志，确保每次打开都能重新计算
+      hasAdjustedRef.current = false;
+      setInvertedAspectRatio(false);
+      setCurrentAspectRatio(aspectRatio);
     }
   }, [visible, aspectRatio]);
   
@@ -224,37 +223,54 @@ const ImageCropper = ({
     setHistoryIndex(prevIndex => prevIndex + 1);
   }, [historyIndex]);
   
-  // 图片加载完成后的回调，实现 autoCropArea: 1 效果
+  // 图片加载完成后的回调，实现稳定的 autoCropArea: 1 效果
   const onMediaLoaded = useCallback((mediaSize) => {
     console.log('媒体加载完成:', mediaSize);
     setMediaSize(mediaSize);
     
-    // 简单实现：使用默认缩放，让 react-easy-crop 自动处理裁剪框大小
-    // react-easy-crop 会根据 aspect 属性自动计算最佳的裁剪框大小
-    // 这样可以实现类似 cropperjs autoCropArea: 1 的效果
-    const defaultZoom = 1;
+    // 计算图片和裁剪框的宽高比
+    const imageAspectRatio = mediaSize.naturalWidth / mediaSize.naturalHeight;
+    const cropAspectRatio = currentAspectRatio;
+    
+    // 计算使裁剪框完全填满图片所需的缩放比例
+    // 这是实现 autoCropArea: 1 的关键
+    let optimalZoom;
+    
+    if (cropAspectRatio > imageAspectRatio) {
+      // 裁剪框比图片更宽，需要放大图片使裁剪框的高度填满图片高度
+      optimalZoom = cropAspectRatio / imageAspectRatio;
+    } else {
+      // 裁剪框比图片更高，需要放大图片使裁剪框的宽度填满图片宽度
+      optimalZoom = imageAspectRatio / cropAspectRatio;
+    }
+    
+    // 确保缩放不小于1，并且稍微调整以确保完全贴合
+    const finalZoom = Math.max(optimalZoom, 1);
+    
+    console.log('计算缩放:', {
+      imageAspectRatio,
+      cropAspectRatio,
+      optimalZoom,
+      finalZoom
+    });
     
     // 更新缩放级别
-    setZoom(defaultZoom);
+    setZoom(finalZoom);
+    
+    // 重置裁剪位置到中心
+    setCrop({ x: 0, y: 0 });
     
     // 更新历史记录
     const newState = {
       crop: { x: 0, y: 0 },
-      zoom: defaultZoom,
+      zoom: finalZoom,
       rotation: 0
     };
     
-    setHistory(prevHistory => {
-      const newHistory = prevHistory.slice(0, historyIndex + 1);
-      newHistory.push(newState);
-      if (newHistory.length > 10) {
-        newHistory.shift();
-      }
-      return newHistory;
-    });
-    setHistoryIndex(prevIndex => prevIndex + 1);
-  }, [isMobile, historyIndex]);
-  
+    setHistory([newState]); // 直接设置为新的历史记录
+    setHistoryIndex(0);
+  }, [currentAspectRatio]);
+    
   // 切换裁剪框宽高比
   const toggleAspectRatio = useCallback(() => {
     setInvertedAspectRatio(prev => {
