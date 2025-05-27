@@ -26,7 +26,19 @@ function App() {
       setWindowWidth(window.innerWidth);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    
+    // 防止iOS Safari地址栏变化导致的高度问题
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        setWindowWidth(window.innerWidth);
+      }, 100);
+    };
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
   }, []);
 
   // 判断是否是移动设备
@@ -67,7 +79,12 @@ function App() {
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        width: '100%'
+        width: '100%',
+        // 移动端优化
+        minHeight: isMobile ? '56px' : '64px',
+        height: isMobile ? '56px' : '64px',
+        // 防止点击时的高亮效果
+        WebkitTapHighlightColor: 'transparent'
       }}>
         <div className="logo" style={{ marginRight: isMobile ? 'auto' : '18px' }}>照片上传系统</div>
         
@@ -77,7 +94,14 @@ function App() {
               type="text"
               icon={<MenuOutlined />}
               onClick={() => setMobileMenuVisible(true)}
-              style={{ color: 'white' }}
+              style={{ 
+                color: 'white',
+                minHeight: '44px',
+                minWidth: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             />
             <Drawer
               title="菜单"
@@ -111,7 +135,11 @@ function App() {
       <Content style={{ 
         padding: isMobile ? '0 15px' : '0 50px', 
         marginTop: '16px',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        // 移动端优化
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <div
           style={{
@@ -119,6 +147,10 @@ function App() {
             minHeight: 280,
             padding: isMobile ? 16 : 24,
             borderRadius: borderRadiusLG,
+            // 移动端优化
+            flex: 1,
+            overflow: 'auto',
+            WebkitOverflowScrolling: 'touch'
           }}
         >
           <Routes>

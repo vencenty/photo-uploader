@@ -27,14 +27,8 @@ export const uploadConfig = {
     // 同时上传的最大数量
     maxSimultaneousUploads: 1,
     
-    // 图片代理URL前缀（用于预览，压缩过的）
-    imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/',
-    
-    // 原图URL前缀（用于裁剪，高质量）
-    imageOriginalUrl: 'https://img-proxy.vencenty.cn/insecure/plain/',
-    
-    // 裁剪预览URL前缀（用于裁剪界面，中等质量，减少卡顿）
-    imageCropUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:1200:0/quality:85/plain/'
+    // 图片代理URL前缀（用于缩略图显示，压缩过的）
+    imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'
   };
   
   export default {

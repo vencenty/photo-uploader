@@ -349,6 +349,7 @@ const PhotoUploader = ({
                         display: 'block'
                       }}
                       preview={{
+                        src: photo.serverUrl, // 预览时使用原图
                         mask: <div style={{ fontSize: isMobile ? 12 : 14 }}>预览</div>,
                         maskClassName: 'custom-mask'
                       }}
@@ -422,8 +423,8 @@ const PhotoUploader = ({
       {/* 裁剪组件 */}
       {currentPhoto && (
         <ImageCropper
-          image={isMobile ? uploadConfig.imageCropUrl + currentPhoto.serverUrl : uploadConfig.imageOriginalUrl + currentPhoto.serverUrl}
-          originalImage={uploadConfig.imageOriginalUrl + currentPhoto.serverUrl}
+          image={currentPhoto.serverUrl} // 直接使用原图进行裁剪
+          originalImage={currentPhoto.serverUrl} // 原图也是同一个URL
           visible={cropperVisible}
           onClose={() => setCropperVisible(false)}
           onCropComplete={handleCropComplete}
