@@ -103,6 +103,7 @@ const PhotoUploader = ({
         // 根据接口文档获取图片URL
         const photoUrl = response.data.url || response.data;
         
+        console.log("photoUrl", photoUrl);
         // 创建照片对象
         const newPhoto = {
           id: Math.random().toString(36).substr(2, 9),
@@ -421,7 +422,8 @@ const PhotoUploader = ({
       {/* 裁剪组件 */}
       {currentPhoto && (
         <ImageCropper
-          image={currentPhoto.serverUrl}
+          image={isMobile ? uploadConfig.imageCropUrl + currentPhoto.serverUrl : uploadConfig.imageOriginalUrl + currentPhoto.serverUrl}
+          originalImage={uploadConfig.imageOriginalUrl + currentPhoto.serverUrl}
           visible={cropperVisible}
           onClose={() => setCropperVisible(false)}
           onCropComplete={handleCropComplete}
