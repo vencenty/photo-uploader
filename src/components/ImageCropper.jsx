@@ -11,7 +11,7 @@ const StyledCropContainer = styled.div`
   background: #333;
   border-radius: 8px;
   overflow: hidden;
-  
+
   @media (max-width: 768px) {
     height: 300px;
     border-radius: 6px;
@@ -23,7 +23,7 @@ const ControlsContainer = styled.div`
   border-radius: 8px;
   padding: 16px;
   margin-top: 16px;
-  
+
   @media (max-width: 768px) {
     padding: 12px;
     margin-top: 12px;
@@ -36,7 +36,7 @@ const DirectionControl = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  
+
   @media (max-width: 768px) {
     margin-bottom: 12px;
   }
@@ -46,14 +46,14 @@ const ZoomControl = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  
+
   .zoom-label {
     font-size: 14px;
     font-weight: 500;
     color: #333;
     min-width: 40px;
   }
-  
+
   .zoom-range {
     flex: 1;
     height: 6px;
@@ -61,7 +61,7 @@ const ZoomControl = styled.div`
     background: #e1e5e9;
     outline: none;
     -webkit-appearance: none;
-    
+
     &::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 20px;
@@ -71,13 +71,13 @@ const ZoomControl = styled.div`
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
       transition: all 0.2s ease;
-      
+
       &:hover {
         transform: scale(1.1);
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
       }
     }
-    
+
     &::-moz-range-thumb {
       width: 20px;
       height: 20px;
@@ -87,14 +87,14 @@ const ZoomControl = styled.div`
       border: none;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
       transition: all 0.2s ease;
-      
+
       &:hover {
         transform: scale(1.1);
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
       }
     }
   }
-  
+
   .zoom-value {
     font-size: 14px;
     font-weight: 500;
@@ -102,29 +102,29 @@ const ZoomControl = styled.div`
     min-width: 35px;
     text-align: right;
   }
-  
+
   @media (max-width: 768px) {
     gap: 8px;
-    
+
     .zoom-label {
       font-size: 13px;
       min-width: 35px;
     }
-    
+
     .zoom-range {
       height: 8px;
-      
+
       &::-webkit-slider-thumb {
         width: 24px;
         height: 24px;
       }
-      
+
       &::-moz-range-thumb {
         width: 24px;
         height: 24px;
       }
     }
-    
+
     .zoom-value {
       font-size: 13px;
       min-width: 30px;
@@ -141,7 +141,7 @@ const StatusBadge = styled.span`
   font-weight: 500;
   background: ${props => props.inverted ? '#e6f7ff' : '#f6f6f6'};
   color: ${props => props.inverted ? '#1890ff' : '#666'};
-  
+
   @media (max-width: 768px) {
     font-size: 11px;
     padding: 3px 6px;
@@ -150,7 +150,7 @@ const StatusBadge = styled.span`
 
 /**
  * 图片裁剪组件
- * 
+ *
  * @param {Object} props 组件属性
  * @param {string} props.image 图片URL（用于预览）
  * @param {string} props.originalImage 原图URL（用于裁剪）
@@ -160,11 +160,11 @@ const StatusBadge = styled.span`
  * @param {number} props.aspectRatio 裁剪比例（宽/高）
  * @param {boolean} props.isMobile 是否是移动设备
  */
-const ImageCropper = ({ 
-  image, 
+const ImageCropper = ({
+  image,
   originalImage,
-  visible, 
-  onClose, 
+  visible,
+  onClose,
   onCropComplete,
   aspectRatio = 4/3,
   isMobile = false
@@ -188,21 +188,21 @@ const ImageCropper = ({
   const onMediaLoaded = useCallback((mediaSize) => {
     console.log('图片加载完成:', mediaSize);
     setImageLoading(false);
-    
+
     // 计算图片宽高比，判断是否为横向图片
     const imageAspectRatio = mediaSize.naturalWidth / mediaSize.naturalHeight;
     const imageIsLandscape = imageAspectRatio > 1;
-    
+
     // 检测目标裁剪比例的方向
     const cropIsLandscape = aspectRatio > 1;
-    
+
     console.log('图片方向分析:', {
       imageAspectRatio,
       imageIsLandscape,
       cropIsLandscape,
       originalAspectRatio: aspectRatio
     });
-    
+
     // 当图片方向与裁剪框方向不匹配时，自动调整裁剪框方向
     if (imageIsLandscape !== cropIsLandscape) {
       console.log('图片与裁剪框方向不匹配，自动调整裁剪框方向');
@@ -244,11 +244,11 @@ const ImageCropper = ({
       // 使用原图进行裁剪以保证质量
       const imageUrlForCrop = originalImage || image;
       const croppedBlob = await getCroppedImg(imageUrlForCrop, croppedAreaPixels);
-      
+
       // 创建文件对象
       const fileName = `cropped-image-${Date.now()}.jpg`;
       const file = new File([croppedBlob], fileName, { type: 'image/jpeg' });
-      
+
       onCropComplete(file);
       onClose();
     } catch (e) {
@@ -295,7 +295,7 @@ const ImageCropper = ({
   return (
     <Modal
       title={
-        <div style={{ 
+        <div style={{
           fontSize: isMobile ? '18px' : '16px',
           fontWeight: 600,
           color: '#333'
@@ -306,8 +306,8 @@ const ImageCropper = ({
       open={visible}
       onCancel={handleClose}
       width={isMobile ? "95%" : 800}
-      styles={{ 
-        body: { 
+      styles={{
+        body: {
           padding: isMobile ? "16px" : "24px",
           maxHeight: isMobile ? '80vh' : 'auto',
           overflow: 'auto'
@@ -317,16 +317,16 @@ const ImageCropper = ({
         }
       }}
       footer={
-        <div style={{ 
-          display: 'flex', 
+        <div style={{
+          display: 'flex',
           gap: isMobile ? '12px' : '8px',
           padding: isMobile ? '12px 0' : '0'
         }}>
-          <Button 
-            key="cancel" 
+          <Button
+            key="cancel"
             onClick={handleClose}
             size={isMobile ? "large" : "middle"}
-            style={{ 
+            style={{
               flex: isMobile ? 1 : 'none',
               height: isMobile ? '44px' : '32px',
               borderRadius: isMobile ? '8px' : '6px'
@@ -334,13 +334,13 @@ const ImageCropper = ({
           >
             取消
           </Button>
-          <Button 
-            key="confirm" 
-            type="primary" 
+          <Button
+            key="confirm"
+            type="primary"
             onClick={createCroppedImage}
             loading={isLoading}
             size={isMobile ? "large" : "middle"}
-            style={{ 
+            style={{
               flex: isMobile ? 1 : 'none',
               height: isMobile ? '44px' : '32px',
               borderRadius: isMobile ? '8px' : '6px'
@@ -390,16 +390,16 @@ const ImageCropper = ({
           }}
         />
       </StyledCropContainer>
-      
+
       <ControlsContainer>
         <DirectionControl>
-          <Button 
-            icon={<SwapOutlined />} 
+          <Button
+            icon={<SwapOutlined />}
             onClick={toggleAspectRatio}
             size={isMobile ? "large" : "middle"}
             type="primary"
             ghost
-            style={{ 
+            style={{
               borderRadius: isMobile ? '8px' : '6px',
               height: isMobile ? '44px' : '36px',
               minWidth: isMobile ? '120px' : '100px'
@@ -407,28 +407,12 @@ const ImageCropper = ({
           >
             {isMobile ? "切换方向" : "切换方向"}
           </Button>
-          
+
           <StatusBadge inverted={isAspectRatioInverted}>
             {isAspectRatioInverted ? '已调整方向' : '原始方向'}
           </StatusBadge>
         </DirectionControl>
 
-                 <ZoomControl>
-           <span className="zoom-label">缩放</span>
-           <input
-             type="range"
-             value={zoom}
-             min={1}
-             max={3}
-             step={isMobile ? 0.2 : 0.1}
-             onChange={(e) => {
-               const newZoom = parseFloat(e.target.value);
-               debouncedZoomChange(newZoom);
-             }}
-             className="zoom-range"
-           />
-           <span className="zoom-value">{zoom.toFixed(1)}x</span>
-         </ZoomControl>
       </ControlsContainer>
     </Modal>
   );
@@ -485,4 +469,4 @@ const createImage = (url) => {
   });
 };
 
-export default ImageCropper; 
+export default ImageCropper;

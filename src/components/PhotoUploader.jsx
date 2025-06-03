@@ -292,6 +292,19 @@ const PhotoUploader = ({
   // 获取当前尺寸的宽高比
   const aspectRatio = getAspectRatioByName(size);
   
+  // 计算缩略图容器的尺寸，基于照片规格的宽高比
+  const getThumbContainerStyle = () => {
+    const baseWidth = isMobile ? 140 : 160; // 基础宽度
+    const height = baseWidth / aspectRatio; // 根据宽高比计算高度
+    
+    return {
+      width: baseWidth,
+      height: height,
+      maxHeight: isMobile ? 200 : 240, // 设置最大高度避免过高
+      minHeight: isMobile ? 100 : 120   // 设置最小高度避免过矮
+    };
+  };
+  
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
@@ -325,96 +338,102 @@ const PhotoUploader = ({
         <div style={{ marginTop: 16 }}>
           <Image.PreviewGroup>
             <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
-              {photos.map(photo => (
-                <Col key={photo.id} xs={12} sm={8} md={6} lg={4}>
-                  <div style={{ 
-                    position: 'relative', 
-                    marginBottom: 8, 
-                    width: '100%',
-                    height: isMobile ? '150px' : '180px',
-                    overflow: 'hidden',
-                    backgroundColor: '#f5f5f5',
-                    borderRadius: 4,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Image
-                      src={photo.url}
-                      alt={photo.name}
-                      style={{ 
-                        objectFit: 'contain',
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        display: 'block'
-                      }}
-                      preview={{
-                        src: photo.serverUrl, // 预览时使用原图
-                        mask: <div style={{ fontSize: isMobile ? 12 : 14 }}>预览</div>,
-                        maskClassName: 'custom-mask'
-                      }}
-                      rootClassName="photo-preview-wrapper"
-                    />
+              {photos.map(photo => {
+                const containerStyle = getThumbContainerStyle();
+                return (
+                  <Col key={photo.id} xs={12} sm={8} md={6} lg={4}>
+                    <div style={{ 
+                      position: 'relative', 
+                      marginBottom: 8, 
+                      width: containerStyle.width,
+                      height: containerStyle.height,
+                      maxHeight: containerStyle.maxHeight,
+                      minHeight: containerStyle.minHeight,
+                      overflow: 'hidden',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: 4,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto' // 居中显示
+                    }}>
+                      <Image
+                        src={photo.url}
+                        alt={photo.name}
+                        style={{ 
+                          objectFit: 'contain',
+                          width: '100%',
+                          height: '100%',
+                          display: 'block'
+                        }}
+                        preview={{
+                          src: photo.serverUrl, // 预览时使用原图
+                          mask: <div style={{ fontSize: isMobile ? 12 : 14 }}>预览</div>,
+                          maskClassName: 'custom-mask'
+                        }}
+                        rootClassName="photo-preview-wrapper"
+                      />
+                      
+                      {/* 标签区域 */}
+                      <div style={{ position: 'absolute', top: 5, right: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {photo.compressed && (
+                          <Tag color="blue" style={{ 
+                            fontSize: isMobile ? 10 : 12,
+                            padding: isMobile ? '0 4px' : '0 6px',
+                            margin: 0
+                          }}>
+                            <CompressOutlined /> 已压缩
+                          </Tag>
+                        )}
+                        {photo.cropped && (
+                          <Tag color="green" style={{ 
+                            fontSize: isMobile ? 10 : 12,
+                            padding: isMobile ? '0 4px' : '0 6px',
+                            margin: 0
+                          }}>
+                            <ScissorOutlined /> 已裁剪
+                          </Tag>
+                        )}
+                      </div>
+                    </div>
                     
-                    {/* 标签区域 */}
-                    <div style={{ position: 'absolute', top: 5, right: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {photo.compressed && (
-                        <Tag color="blue" style={{ 
-                          fontSize: isMobile ? 10 : 12,
-                          padding: isMobile ? '0 4px' : '0 6px',
-                          margin: 0
-                        }}>
-                          <CompressOutlined /> 已压缩
-                        </Tag>
-                      )}
-                      {photo.cropped && (
-                        <Tag color="green" style={{ 
-                          fontSize: isMobile ? 10 : 12,
-                          padding: isMobile ? '0 4px' : '0 6px',
-                          margin: 0
-                        }}>
-                          <ScissorOutlined /> 已裁剪
-                        </Tag>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <Text ellipsis style={{ fontSize: isMobile ? 10 : 12, flex: 1 }}>
+                        {photo.name}
+                      </Text>
+                      {photo.compressed && photo.originalSize && photo.compressedSize && (
+                        <Text style={{ fontSize: isMobile ? 9 : 10, color: '#999', marginLeft: 4 }}>
+                          {formatFileSize(photo.compressedSize)}
+                        </Text>
                       )}
                     </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text ellipsis style={{ fontSize: isMobile ? 10 : 12, flex: 1 }}>
-                      {photo.name}
-                    </Text>
-                    {photo.compressed && photo.originalSize && photo.compressedSize && (
-                      <Text style={{ fontSize: isMobile ? 9 : 10, color: '#999', marginLeft: 4 }}>
-                        {formatFileSize(photo.compressedSize)}
-                      </Text>
-                    )}
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    {/* 所有规格的照片都显示裁剪按钮 */}
-                    <Button 
-                      type="text"
-                      icon={<ScissorOutlined />}
-                      onClick={() => handleCropPhoto(photo)}
-                      size={isMobile ? "small" : "middle"}
-                      style={{ padding: '0 8px' }}
-                    >
-                      裁剪
-                    </Button>
                     
-                    <Button 
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDeletePhoto(photo.id)}
-                      size={isMobile ? "small" : "middle"}
-                      style={{ padding: '0 8px' }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </Col>
-              ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      {/* 所有规格的照片都显示裁剪按钮 */}
+                      <Button 
+                        type="text"
+                        icon={<ScissorOutlined />}
+                        onClick={() => handleCropPhoto(photo)}
+                        size={isMobile ? "small" : "middle"}
+                        style={{ padding: '0 8px' }}
+                      >
+                        裁剪
+                      </Button>
+                      
+                      <Button 
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        size={isMobile ? "small" : "middle"}
+                        style={{ padding: '0 8px' }}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </Col>
+                );
+              })}
             </Row>
           </Image.PreviewGroup>
         </div>
