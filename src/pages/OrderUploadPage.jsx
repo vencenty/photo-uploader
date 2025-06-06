@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
-import PerformanceMonitor from '../components/PerformanceMonitor';
+
 import { uploadConfig } from '../config/app.config';
 import { getSizeOptions } from '../config/photo';
 
@@ -60,8 +60,7 @@ function OrderUploadPage() {
   // 总照片数
   const [totalPhotos, setTotalPhotos] = useState(0);
   
-  // 性能监控状态
-  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
+
 
   // 提交订单确认对话框
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -417,6 +416,32 @@ function OrderUploadPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '10px 0' : '20px 0' }}>
         <Title level={isMobile ? 3 : 2}>订单上传</Title>
 
+        {/* 温馨提示 */}
+        <div style={{ 
+          background: '#fff2f0', 
+          border: '1px solid #ffccc7', 
+          borderRadius: '6px', 
+          padding: '12px 16px',
+          marginBottom: '20px',
+          fontSize: isMobile ? '12px' : '14px',
+          lineHeight: '1.6'
+        }}>
+          <div style={{ 
+            fontWeight: 'bold', 
+            color: '#ff4d4f', 
+            marginBottom: '8px',
+            fontSize: isMobile ? '13px' : '15px'
+          }}>
+            📋 温馨提示：
+          </div>
+          <div style={{ color: '#ff4d4f', marginBottom: '6px' }}>
+            1. 用此链接上传照片全部为原图上传
+          </div>
+          <div style={{ color: '#ff4d4f' }}>
+            2. 【满版照片和拍立得尺寸照片】请您一定要点击照片进行裁剪，若不裁剪系统会默认按照照片居中进行裁切（会影响出片效果）。另外裁剪请留好构图空间，不要人物或者肢体紧贴画面边缘，满版照片输出四周会有2-3mm的出血线被裁切。
+          </div>
+        </div>
+
         {/* 订单基本信息 */}
         <Card title="订单信息" style={{ marginBottom: 16 }}>
           <Form
@@ -575,15 +600,7 @@ function OrderUploadPage() {
           </div>
         </Modal>
 
-        {/* 性能监控组件 */}
-        <PerformanceMonitor
-          totalImages={totalPhotos}
-          loadedImages={totalPhotos}
-          visibleImages={Math.min(20, totalPhotos)}
-          cacheSize={0}
-          showMonitor={showPerformanceMonitor}
-          onToggle={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
-        />
+
       </div>
     </Spin>
   );

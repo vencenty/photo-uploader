@@ -107,7 +107,7 @@
   onDeletePhoto={handleDelete}
   isMobile={isMobile}
   aspectRatio={aspectRatio}
-  containerHeight={600}
+  containerHeight={400}
 />
 ```
 

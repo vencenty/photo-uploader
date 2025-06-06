@@ -325,15 +325,13 @@ const PhotoUploader = ({
       
       {/* 照片预览区域 - 使用高性能虚拟滚动 */}
       {photos.length > 0 && (
-        <div style={{ marginTop: 16 }}>
+        <div>
           <VirtualPhotoGrid
             photos={photos}
             onCropPhoto={handleCropPhoto}
             onDeletePhoto={handleDeletePhoto}
             isMobile={isMobile}
             aspectRatio={aspectRatio}
-            containerHeight={Math.max(400, Math.min(800, photos.length * 80))}
-            debug={true}
           />
         </div>
       )}
