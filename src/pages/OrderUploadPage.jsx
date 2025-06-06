@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
+import PerformanceMonitor from '../components/PerformanceMonitor';
 import { uploadConfig } from '../config/app.config';
 import { getSizeOptions } from '../config/photo';
 
@@ -58,6 +59,9 @@ function OrderUploadPage() {
 
   // 总照片数
   const [totalPhotos, setTotalPhotos] = useState(0);
+  
+  // 性能监控状态
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
 
   // 提交订单确认对话框
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -570,6 +574,16 @@ function OrderUploadPage() {
             <Text type="secondary">点击确认后，订单将被提交处理</Text>
           </div>
         </Modal>
+
+        {/* 性能监控组件 */}
+        <PerformanceMonitor
+          totalImages={totalPhotos}
+          loadedImages={totalPhotos}
+          visibleImages={Math.min(20, totalPhotos)}
+          cacheSize={0}
+          showMonitor={showPerformanceMonitor}
+          onToggle={() => setShowPerformanceMonitor(!showPerformanceMonitor)}
+        />
       </div>
     </Spin>
   );

@@ -15,6 +15,8 @@
     "react-dom": "^19.1.0",
     "react-easy-crop": "^5.4.1",
     "react-router-dom": "^7.6.0",
+    "react-window": "^1.8.11",
+    "react-window-infinite-loader": "^1.0.10",
     "styled-components": "^6.1.18",
     "uuid": "^11.1.0",
     "vue": "^3.5.13"

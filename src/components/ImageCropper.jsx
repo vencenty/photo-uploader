@@ -240,21 +240,34 @@ const ImageCropper = ({
     }
 
     setIsLoading(true);
+    console.log('开始裁剪图片...', croppedAreaPixels);
+    
     try {
       // 使用原图进行裁剪以保证质量
       const imageUrlForCrop = originalImage || image;
-      const croppedBlob = await getCroppedImg(imageUrlForCrop, croppedAreaPixels);
+      console.log('使用图片URL:', imageUrlForCrop);
+      
+      // 添加整体超时处理
+      const cropPromise = getCroppedImg(imageUrlForCrop, croppedAreaPixels);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('裁剪操作超时，请重试')), 30000);
+      });
+      
+      const croppedBlob = await Promise.race([cropPromise, timeoutPromise]);
+      console.log('裁剪完成，blob大小:', croppedBlob.size);
 
       // 创建文件对象
       const fileName = `cropped-image-${Date.now()}.jpg`;
       const file = new File([croppedBlob], fileName, { type: 'image/jpeg' });
+      console.log('文件创建完成:', file.name, file.size);
 
       onCropComplete(file);
       onClose();
     } catch (e) {
       console.error('裁剪图片出错:', e);
-      message.error('图片裁剪失败，请重试');
+      message.error(e.message || '图片裁剪失败，请重试');
     } finally {
+      console.log('裁剪流程结束，关闭loading');
       setIsLoading(false);
     }
   }, [croppedAreaPixels, image, originalImage, onCropComplete, onClose]);
@@ -301,6 +314,7 @@ const ImageCropper = ({
           color: '#333'
         }}>
           裁剪图片
+          <p style={{"color":"red"}}>裁剪框某些情况可能初始化不正确，点击切换方向可解决</p>
         </div>
       }
       open={visible}
@@ -425,13 +439,17 @@ const ImageCropper = ({
  * @returns {Promise<Blob>} 裁剪后的图片Blob
  */
 const getCroppedImg = async (imageSrc, pixelCrop) => {
+  console.log('开始加载图片:', imageSrc);
   const image = await createImage(imageSrc);
+  console.log('图片加载完成:', image.width, 'x', image.height);
+  
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
   // 设置画布大小为裁剪的尺寸
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
+  console.log('画布尺寸:', canvas.width, 'x', canvas.height);
 
   // 绘制裁剪的图像区域
   ctx.drawImage(
@@ -445,11 +463,25 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
     pixelCrop.width,
     pixelCrop.height
   );
+  console.log('图像绘制完成');
 
-  // 将画布转换为blob
-  return new Promise((resolve) => {
+  // 将画布转换为blob，添加超时处理
+  return new Promise((resolve, reject) => {
+    // 设置10秒超时
+    const timeout = setTimeout(() => {
+      console.error('canvas.toBlob 超时');
+      reject(new Error('图片处理超时'));
+    }, 10000);
+
     canvas.toBlob((blob) => {
-      resolve(blob);
+      clearTimeout(timeout);
+      if (blob) {
+        console.log('Blob创建成功:', blob.size, 'bytes');
+        resolve(blob);
+      } else {
+        console.error('Blob创建失败');
+        reject(new Error('无法创建图片文件'));
+      }
     }, 'image/jpeg', 0.95);
   });
 };
@@ -461,9 +493,26 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
  */
 const createImage = (url) => {
   return new Promise((resolve, reject) => {
+    // 设置15秒超时
+    const timeout = setTimeout(() => {
+      console.error('图片加载超时:', url);
+      reject(new Error('图片加载超时'));
+    }, 15000);
+
     const image = new Image();
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', (error) => reject(error));
+    
+    image.addEventListener('load', () => {
+      clearTimeout(timeout);
+      console.log('图片加载成功:', url);
+      resolve(image);
+    });
+    
+    image.addEventListener('error', (error) => {
+      clearTimeout(timeout);
+      console.error('图片加载失败:', url, error);
+      reject(error);
+    });
+    
     image.setAttribute('crossOrigin', 'anonymous');
     image.src = url;
   });
