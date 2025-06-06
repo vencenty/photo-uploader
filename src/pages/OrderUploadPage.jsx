@@ -7,13 +7,13 @@ import {
   Modal, Spin, Statistic, Tooltip
 } from 'antd';
 import {
-  SaveOutlined, InfoCircleOutlined
+  SaveOutlined, InfoCircleOutlined, ScissorOutlined
 } from '@ant-design/icons';
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
 
 import { uploadConfig } from '../config/app.config';
-import { getSizeOptions } from '../config/photo';
+import { getSizeOptions, PHOTO } from '../config/photo';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -64,6 +64,10 @@ function OrderUploadPage() {
 
   // 提交订单确认对话框
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 未调整大小提示对话框
+  const [isResizeWarningOpen, setIsResizeWarningOpen] = useState(false);
+  const [unadjustedPhotosInfo, setUnadjustedPhotosInfo] = useState([]);
 
   // 修改：改用对象存储每个尺寸的上传状态
   const [uploadingPhotosBySize, setUploadingPhotosBySize] = useState({});
@@ -73,6 +77,34 @@ function OrderUploadPage() {
     console.log("计算总上传数:", uploadingPhotosBySize);
     return Object.values(uploadingPhotosBySize).reduce((total, count) => total + count, 0);
   }, [uploadingPhotosBySize]);
+
+  // 检查未调整大小的照片
+  const checkUnadjustedPhotos = useCallback(() => {
+    const unadjustedInfo = [];
+    
+    selectedSizes.forEach(size => {
+      // 查找当前尺寸的配置
+      const sizeConfig = PHOTO.find(item => item.name === size);
+      
+      // 如果该尺寸建议调整大小
+      if (sizeConfig && sizeConfig.recommendResize) {
+        const photos = sizePhotos[size] || [];
+        
+        // 统计未裁剪（未调整）的照片数量
+        const unadjustedCount = photos.filter(photo => !photo.cropped).length;
+        
+        if (unadjustedCount > 0) {
+          unadjustedInfo.push({
+            size: size,
+            count: unadjustedCount,
+            total: photos.length
+          });
+        }
+      }
+    });
+    
+    return unadjustedInfo;
+  }, [selectedSizes, sizePhotos]);
 
   // 计算总照片数
   useEffect(() => {
@@ -289,8 +321,17 @@ function OrderUploadPage() {
 
   // 提交订单前验证
   const handleSubmit = () => {
-    // 直接执行提交验证
-    actualSubmit();
+    // 检查未调整大小的照片
+    const unadjustedInfo = checkUnadjustedPhotos();
+    
+    if (unadjustedInfo.length > 0) {
+      // 有未调整的照片，显示警告对话框
+      setUnadjustedPhotosInfo(unadjustedInfo);
+      setIsResizeWarningOpen(true);
+    } else {
+      // 没有未调整的照片，直接执行提交验证
+      actualSubmit();
+    }
   };
 
   // 确认提交
@@ -597,6 +638,71 @@ function OrderUploadPage() {
           <Statistic title="照片总数" value={totalPhotos} suffix="张" />
           <div style={{ marginTop: 16 }}>
             <Text type="secondary">点击确认后，订单将被提交处理</Text>
+          </div>
+        </Modal>
+
+        {/* 未调整大小警告对话框 */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', color: '#ff4d4f' }}>
+              <ScissorOutlined style={{ marginRight: 8 }} />
+              照片尺寸调整提醒
+            </div>
+          }
+          open={isResizeWarningOpen}
+          onOk={() => {
+            setIsResizeWarningOpen(false);
+            actualSubmit(); // 用户选择继续提交
+          }}
+          onCancel={() => setIsResizeWarningOpen(false)}
+          okText="继续提交"
+          cancelText="返回编辑"
+          width={isMobile ? '95%' : 600}
+          okButtonProps={{ danger: true }}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ 
+              background: '#fff2f0', 
+              border: '1px solid #ffccc7', 
+              borderRadius: '6px', 
+              padding: '12px',
+              marginBottom: '16px'
+            }}>
+              <Text strong style={{ color: '#ff4d4f' }}>
+                ⚠️ 检测到以下尺寸有照片未进行裁剪调整：
+              </Text>
+            </div>
+            
+            {unadjustedPhotosInfo.map((info, index) => (
+              <div key={index} style={{ 
+                marginBottom: '12px', 
+                padding: '8px 12px',
+                background: '#fafafa',
+                borderRadius: '4px',
+                border: '1px solid #f0f0f0'
+              }}>
+                <Text strong>{info.size}</Text>
+                <Text style={{ marginLeft: '8px', color: '#ff4d4f' }}>
+                  {info.count} 张照片未调整 (共 {info.total} 张)
+                </Text>
+              </div>
+            ))}
+            
+            <div style={{ 
+              background: '#fff7e6', 
+              border: '1px solid #ffd591', 
+              borderRadius: '6px', 
+              padding: '12px',
+              marginTop: '16px'
+            }}>
+              <Text style={{ color: '#d48806', lineHeight: '1.6' }}>
+                📌 <strong>重要提醒：</strong><br/>
+                • 满版照片和拍立得尺寸建议进行裁剪调整<br/>
+                • 如不调整，系统将默认按照照片居中进行裁切<br/>
+                • 可能会影响最终出片效果<br/>
+                • 建议点击"返回编辑"进行裁剪调整
+              </Text>
+            </div>
           </div>
         </Modal>
 
