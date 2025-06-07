@@ -1,10 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="format-detection" content="telephone=no" />
     <title>照片上传系统</title>
+    <!-- iOS Safari兼容性 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- 兼容性脚本 -->
+    <script>
+      // 基础兼容性检查
+      if (!window.console) {
+        window.console = { log: function() {}, error: function() {}, warn: function() {} };
+      }
+      
+      // 检测浏览器类型
+      var ua = navigator.userAgent.toLowerCase();
+      var isSafari = /safari/.test(ua) && !/chrome/.test(ua);
+      var isBaidu = /baiduboxapp/.test(ua) || /baidubrowser/.test(ua);
+      
+      if (isSafari || isBaidu) {
+        console.log('检测到Safari或百度浏览器，启用兼容模式');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

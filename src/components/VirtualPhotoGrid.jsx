@@ -10,7 +10,7 @@ const CONTAINER_PRESETS = {
   mobile: {
     width: 350,        // 固定宽度350px
     height: 480,       // 固定高度480px (增加高度适应间距)
-    itemHeight: 230,   // 每个item高度230px (增加10px间距)
+    itemHeight: 260,   // 每个item高度230px (增加10px间距)
     imageSize: 140,    // 图片区域正方形尺寸140px×140px
     infoHeight: 75,    // 信息区域高度75px
     margin: 5,         // 边距5px (增加边距)
@@ -198,7 +198,7 @@ const PhotoItem = React.memo(({
                               style={{ 
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '9px' : '10px',
+                fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
                 border: '1px solid #d9d9d9',
                 borderRadius: '6px', // 增加圆角
                 padding: 0,
@@ -221,7 +221,7 @@ const PhotoItem = React.memo(({
                               style={{ 
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '9px' : '10px',
+                fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
                 border: '1px solid #ff4d4f',
                 borderRadius: '6px', // 增加圆角
                 padding: 0,

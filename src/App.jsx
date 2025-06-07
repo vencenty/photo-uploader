@@ -5,6 +5,7 @@ import { MenuOutlined } from '@ant-design/icons';
 import OrderQueryPage from './pages/OrderQueryPage';
 import OrderUploadPage from './pages/OrderUploadPage';
 import SubmitSuccessPage from './pages/SubmitSuccessPage';
+import CompatibilityCheck from './components/CompatibilityCheck';
 
 const { Header, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -71,21 +72,22 @@ function App() {
   };
 
   return (
-    <Layout className="layout" style={{ minHeight: '100vh' }}>
-      <Header style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        padding: isMobile ? '0 15px' : '0 50px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        width: '100%',
-        // 移动端优化
-        minHeight: isMobile ? '56px' : '64px',
-        height: isMobile ? '56px' : '64px',
-        // 防止点击时的高亮效果
-        WebkitTapHighlightColor: 'transparent'
-      }}>
+    <CompatibilityCheck>
+      <Layout className="layout" style={{ minHeight: '100vh' }}>
+        <Header style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          padding: isMobile ? '0 15px' : '0 50px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 1000,
+          width: '100%',
+          // 移动端优化
+          minHeight: isMobile ? '56px' : '64px',
+          height: isMobile ? '56px' : '64px',
+          // 防止点击时的高亮效果
+          WebkitTapHighlightColor: 'transparent'
+        }}>
         <div className="logo" style={{ marginRight: isMobile ? 'auto' : '18px' }}>照片上传系统</div>
         
         {isMobile ? (
@@ -164,6 +166,7 @@ function App() {
         照片上传系统 ©{new Date().getFullYear()} 
       </Footer>
     </Layout>
+    </CompatibilityCheck>
   );
 }
 

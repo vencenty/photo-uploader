@@ -150,17 +150,18 @@ function OrderUploadPage() {
 
               // 处理每种规格的照片
               response.data.photos.forEach(item => {
-                if (item.spec && Array.isArray(item.urls) && item.urls.length > 0) {
+                if (item.spec && Array.isArray(item.metadata) && item.metadata.length > 0) {
                   // 添加到选中的尺寸
                   newSelectedSizes.push(item.spec);
 
                   // 创建照片对象数组
-                  newSizePhotos[item.spec] = item.urls.map(url => ({
+                  newSizePhotos[item.spec] = item.metadata.map(photoMeta => ({
                     id: uuidv4(),
-                    name: url.split('/').pop() || '照片',
-                    url: uploadConfig.imageProxyUrl + url,
-                    serverUrl: url,
-                    status: 'done'
+                    name: photoMeta.url.split('/').pop() || '照片',
+                    url: uploadConfig.imageProxyUrl + photoMeta.url,
+                    serverUrl: photoMeta.url,
+                    status: 'done',
+                    cropped: photoMeta.is_resized === 1 // 根据is_resized设置cropped状态
                   }));
                 }
               });
@@ -345,13 +346,16 @@ function OrderUploadPage() {
       Object.entries(sizePhotos).forEach(([sizeStr, photos]) => {
         // 确保只处理选中的尺寸
         if (selectedSizes.includes(sizeStr) && photos.length > 0) {
-          // 获取尺寸对应的urls
-          const urls = photos.map(photo => photo.serverUrl || photo.url);
+          // 获取尺寸对应的metadata信息
+          const metadata = photos.map(photo => ({
+            url: photo.serverUrl || photo.url,
+            is_resized: photo.cropped ? 1 : 0 // 1表示已调整尺寸，0表示未调整
+          }));
 
           // 按API文档格式添加到photos数组
           photosArray.push({
-            spec: sizeStr, // 照片规格，例如"3寸-满版"
-            urls: urls     // 照片URL数组
+            spec: sizeStr,    // 照片规格，例如"3寸-满版"
+            metadata: metadata // 照片元数据数组，包含url和is_resized字段
           });
         }
       });
