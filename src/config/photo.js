@@ -37,6 +37,11 @@ export const PHOTO = [
       "recommendResize": false
     },
     {
+      "name": "5寸-拍立得",
+      "aspectRatio": 76/102,
+      "recommendResize": true
+    },
+    {
       "name": "6寸-满版",
       "aspectRatio": 2/3,
       "recommendResize": true
