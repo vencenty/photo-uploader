@@ -1,0 +1,23 @@
+# 移动端浏览器
+iOS >= 10
+Android >= 5
+ChromeAndroid >= 58
+FirefoxAndroid >= 57
+Samsung >= 6
+
+# 桌面端浏览器
+Chrome >= 58
+Firefox >= 57
+Safari >= 11
+Edge >= 16
+
+# 特殊要求
+> 1%
+last 2 versions
+not dead
+not IE 11
+
+# 针对中国用户的特殊配置
+# 支持微信浏览器、百度浏览器等
+and_chr >= 58
+and_ff >= 57 

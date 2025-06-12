@@ -24,8 +24,8 @@ export const uploadConfig = {
     // 上传超时时间(毫秒)
     timeout: 30000,
     
-    // 同时上传的最大数量
-    maxSimultaneousUploads: 1,
+    // 同时上传的最大数量（移动端降低并发数）
+    maxSimultaneousUploads: navigator.userAgent.toLowerCase().includes('mobile') ? 2 : 3,
     
     // 图片代理URL前缀（用于缩略图显示，压缩过的）
     imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'

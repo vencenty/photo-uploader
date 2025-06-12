@@ -175,6 +175,68 @@ if (typeof URL === 'undefined' && typeof webkitURL !== 'undefined') {
   window.URL = window.webkitURL;
 }
 
+// Intersection Observer polyfill for older browsers
+if (!('IntersectionObserver' in window)) {
+  console.warn('IntersectionObserver不支持，图片懒加载功能可能受影响');
+  // 简单的降级方案
+  window.IntersectionObserver = class {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe(element) {
+      // 立即执行回调，模拟元素可见
+      setTimeout(() => {
+        this.callback([{ isIntersecting: true, target: element }]);
+      }, 100);
+    }
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// File API 兼容性检查
+if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+  console.error('您的浏览器不支持File API，文件上传功能可能无法正常工作');
+}
+
+// requestAnimationFrame polyfill
+if (!window.requestAnimationFrame) {
+  window.requestAnimationFrame = function(callback) {
+    return setTimeout(callback, 1000 / 60);
+  };
+}
+
+if (!window.cancelAnimationFrame) {
+  window.cancelAnimationFrame = function(id) {
+    clearTimeout(id);
+  };
+}
+
+// Touch events polyfill for desktop testing
+if (!('ontouchstart' in window) && !window.navigator.msMaxTouchPoints) {
+  // 在非触摸设备上模拟基本的触摸事件
+  window.Touch = window.Touch || function() {};
+  window.TouchList = window.TouchList || function() {};
+}
+
+// Performance API polyfill
+if (!window.performance) {
+  window.performance = {
+    now: function() {
+      return Date.now();
+    },
+    timing: {
+      navigationStart: Date.now()
+    }
+  };
+}
+
+if (!window.performance.now) {
+  window.performance.now = function() {
+    return Date.now() - window.performance.timing.navigationStart;
+  };
+}
+
 // 导出检查函数
 export const checkBrowserSupport = () => {
   const support = {

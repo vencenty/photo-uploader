@@ -205,6 +205,63 @@ export const applyBrowserSpecificFixes = () => {
     window.addEventListener('popstate', () => {
       window.history.pushState(null, null, window.location.href);
     });
+    
+    // 修复微信浏览器的文件上传问题
+    const style = document.createElement('style');
+    style.textContent = `
+      /* 微信浏览器文件上传修复 */
+      input[type="file"] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+      
+      .ant-upload {
+        display: block !important;
+      }
+      
+      /* 防止微信浏览器的默认样式影响 */
+      .ant-upload-list-item {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  // 通用移动端修复
+  if (browser.isMobile) {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* 移动端点击优化 */
+      .ant-btn {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        min-height: 44px;
+      }
+      
+      /* 移动端输入框优化 */
+      .ant-input, .ant-input-number {
+        font-size: 16px; /* 防止iOS缩放 */
+      }
+      
+      /* 移动端文件上传优化 */
+      .ant-upload-btn {
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      
+      /* 防止移动端长按选择 */
+      .ant-upload-list-item {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+    `;
+    document.head.appendChild(style);
   }
   
   console.log('已应用浏览器特定修复:', browser.name, browser.version);

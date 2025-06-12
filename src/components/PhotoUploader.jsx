@@ -15,8 +15,8 @@ import { uploadConfig } from '../config/app.config';
 
 const { Text } = Typography;
 
-// 最大并发上传数量
-const MAX_CONCURRENT_UPLOADS = 3;
+// 最大并发上传数量（根据设备类型动态调整）
+const MAX_CONCURRENT_UPLOADS = uploadConfig.maxSimultaneousUploads;
 
 /**
  * 照片上传组件
@@ -300,13 +300,17 @@ const PhotoUploader = ({
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
         <Upload
           listType="picture-card"
-          accept="image/*"
+          accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
           multiple={true}
+          directory={false}
           customRequest={customRequest}
           beforeUpload={beforeUpload}
           showUploadList={false}
           disabled={uploadingCount > 0}
           style={{ width: 'auto' }}
+          // 添加移动端兼容性属性
+          capture={false}
+          supportServerRender={false}
         >
           <div style={{ textAlign: 'center', width: '104px', height: '104px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <PictureOutlined style={{ fontSize: isMobile ? 20 : 24 }} />

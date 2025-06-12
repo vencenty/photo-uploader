@@ -617,11 +617,20 @@ function OrderUploadPage() {
                 icon={<SaveOutlined />}
                 onClick={handleSubmit}
                 size={isMobile ? "middle" : "large"}
-                loading={calcTotalUploading() > 0}
-                disabled={!orderInfo.order_sn || !orderInfo.receiver }
+                loading={calcTotalUploading() > 0 || loading}
+                disabled={!orderInfo.order_sn || !orderInfo.receiver || calcTotalUploading() > 0 || loading}
                 block={isMobile}
+                // 添加移动端兼容性
+                style={{ 
+                  minHeight: isMobile ? '44px' : 'auto',
+                  touchAction: 'manipulation',
+                  WebkitTouchCallout: 'none',
+                  WebkitUserSelect: 'none'
+                }}
+                // 防止双击
+                onDoubleClick={(e) => e.preventDefault()}
               >
-                {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : "提交订单"}
+                {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : loading ? "提交中..." : "提交订单"}
               </Button>
             </Tooltip>
           </div>
