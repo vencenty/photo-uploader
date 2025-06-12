@@ -30,16 +30,16 @@ const CONTAINER_PRESETS = {
 /**
  * 优化的图片项组件
  */
-const PhotoItem = React.memo(({ 
-  photo, 
-  onCrop, 
-  onDelete, 
-  formatFileSize, 
+const PhotoItem = React.memo(({
+  photo,
+  onCrop,
+  onDelete,
+  formatFileSize,
   style,
   preset
 }) => {
   const { imageSize, infoHeight, margin, verticalGap } = preset;
-  
+
   return (
     <div style={style}>
       <div style={{
@@ -77,7 +77,7 @@ const PhotoItem = React.memo(({
             }}
             preview={{
               src: photo.serverUrl || photo.url,
-              mask: <div style={{ 
+              mask: <div style={{
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '12px',
                 background: 'rgba(0,0,0,0.5)',
                 color: 'white',
@@ -99,7 +99,7 @@ const PhotoItem = React.memo(({
               </div>
             }
           />
-          
+
           {/* 状态标签 */}
           {(photo.compressed || photo.cropped) && (
             <div style={{
@@ -111,8 +111,8 @@ const PhotoItem = React.memo(({
               gap: '2px'
             }}>
               {photo.compressed && (
-                <Tag color="blue" size="small" style={{ 
-                  fontSize: '8px', 
+                <Tag color="blue" size="small" style={{
+                  fontSize: '8px',
                   lineHeight: '12px',
                   padding: '0 4px',
                   margin: 0
@@ -121,19 +121,19 @@ const PhotoItem = React.memo(({
                 </Tag>
               )}
               {photo.cropped && (
-                <Tag color="green" size="small" style={{ 
-                  fontSize: '8px', 
+                <Tag color="green" size="small" style={{
+                  fontSize: '8px',
                   lineHeight: '12px',
                   padding: '0 4px',
                   margin: 0
                 }}>
-                  <ScissorOutlined style={{ fontSize: '8px' }} /> 裁剪
+                  <ScissorOutlined style={{ fontSize: '8px' }} /> 调整
                 </Tag>
               )}
             </div>
           )}
         </div>
-        
+
         {/* 信息和按钮区域 - 使用预设高度 */}
         <div style={{
           width: '100%', // 确保信息区域占满容器宽度
@@ -153,8 +153,8 @@ const PhotoItem = React.memo(({
             flexDirection: 'column',
             overflow: 'hidden'
           }}>
-            <div 
-              style={{ 
+            <div
+              style={{
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px',
                 fontWeight: 500,
                 color: '#333',
@@ -172,8 +172,8 @@ const PhotoItem = React.memo(({
               {photo.name}
             </div>
             {photo.compressedSize && (
-              <div style={{ 
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px', 
+              <div style={{
+                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
                 color: '#999',
                 marginTop: '2px',
                 lineHeight: 1
@@ -182,7 +182,7 @@ const PhotoItem = React.memo(({
               </div>
             )}
           </div>
-          
+
           {/* 按钮区域 - 固定高度 */}
           <div style={{
             display: 'flex',
@@ -190,12 +190,12 @@ const PhotoItem = React.memo(({
             height: preset === CONTAINER_PRESETS.mobile ? '26px' : '30px', // 增加按钮高度
             marginTop: 'auto' // 让按钮区域推到底部（但有padding间距）
           }}>
-            <Button 
+            <Button
               type="text"
               icon={<ScissorOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px' }} />}
               onClick={() => onCrop(photo)}
               size="small"
-                              style={{ 
+                              style={{
                 flex: 1,
                 height: '100%',
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
@@ -211,14 +211,14 @@ const PhotoItem = React.memo(({
             >
               裁剪
             </Button>
-            
-            <Button 
+
+            <Button
               type="text"
               danger
               icon={<DeleteOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px' }} />}
               onClick={() => onDelete(photo.id)}
               size="small"
-                              style={{ 
+                              style={{
                 flex: 1,
                 height: '100%',
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
@@ -264,21 +264,21 @@ const VirtualPhotoGrid = ({
   const layoutConfig = useMemo(() => {
     // 选择预设配置
     const preset = isMobile ? CONTAINER_PRESETS.mobile : CONTAINER_PRESETS.desktop;
-    
+
     // 固定2列
     const columnCount = 2;
-    
+
     // 使用预设的容器宽度和高度
     const containerWidth = preset.width;
     const containerHeight = preset.height;
-    
+
     // 计算每列宽度（减去可能的滚动条宽度）
     const scrollbarWidth = 10;
     const itemWidth = Math.floor((containerWidth - scrollbarWidth) / columnCount);
-    
+
     // 使用预设的item高度
     const itemHeight = preset.itemHeight;
-    
+
     return {
       columnCount,
       itemWidth,
@@ -291,12 +291,12 @@ const VirtualPhotoGrid = ({
 
   // 计算行数
   const rowCount = Math.ceil(photos.length / layoutConfig.columnCount);
-  
+
   // 单元格渲染函数
   const Cell = useCallback(({ columnIndex, rowIndex, style }) => {
     const photoIndex = rowIndex * layoutConfig.columnCount + columnIndex;
     const photo = photos[photoIndex];
-    
+
     if (!photo) {
       return <div style={style} />;
     }
@@ -365,4 +365,4 @@ const VirtualPhotoGrid = ({
   );
 };
 
-export default VirtualPhotoGrid; 
+export default VirtualPhotoGrid;

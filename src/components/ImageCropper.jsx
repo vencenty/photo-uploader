@@ -241,18 +241,18 @@ const ImageCropper = ({
 
     setIsLoading(true);
     console.log('开始裁剪图片...', croppedAreaPixels);
-    
+
     try {
       // 使用原图进行裁剪以保证质量
       const imageUrlForCrop = originalImage || image;
       console.log('使用图片URL:', imageUrlForCrop);
-      
+
       // 添加整体超时处理
       const cropPromise = getCroppedImg(imageUrlForCrop, croppedAreaPixels);
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('裁剪操作超时，请重试')), 30000);
       });
-      
+
       const croppedBlob = await Promise.race([cropPromise, timeoutPromise]);
       console.log('裁剪完成，blob大小:', croppedBlob.size);
 
@@ -360,7 +360,7 @@ const ImageCropper = ({
               borderRadius: isMobile ? '8px' : '6px'
             }}
           >
-            确认裁剪
+            确认调整
           </Button>
         </div>
       }
@@ -442,7 +442,7 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   console.log('开始加载图片:', imageSrc);
   const image = await createImage(imageSrc);
   console.log('图片加载完成:', image.width, 'x', image.height);
-  
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
@@ -500,19 +500,19 @@ const createImage = (url) => {
     }, 15000);
 
     const image = new Image();
-    
+
     image.addEventListener('load', () => {
       clearTimeout(timeout);
       console.log('图片加载成功:', url);
       resolve(image);
     });
-    
+
     image.addEventListener('error', (error) => {
       clearTimeout(timeout);
       console.error('图片加载失败:', url, error);
       reject(error);
     });
-    
+
     image.setAttribute('crossOrigin', 'anonymous');
     image.src = url;
   });
