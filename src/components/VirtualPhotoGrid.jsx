@@ -127,7 +127,7 @@ const PhotoItem = React.memo(({
                   padding: '0 4px',
                   margin: 0
                 }}>
-                  <ScissorOutlined style={{ fontSize: '8px' }} /> 调整
+                  <ScissorOutlined style={{ fontSize: '8px' }} /> 裁剪
                 </Tag>
               )}
             </div>
@@ -209,7 +209,7 @@ const PhotoItem = React.memo(({
                 transition: 'all 0.2s ease' // 添加过渡效果
               }}
             >
-              裁剪
+              调整
             </Button>
 
             <Button

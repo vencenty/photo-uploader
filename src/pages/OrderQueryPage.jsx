@@ -26,17 +26,17 @@ function OrderQueryPage() {
 
   const handleQuery = async (values) => {
     const { orderSn } = values;
-    
+
     if (!orderSn?.trim()) {
       message.error('请输入订单号');
       return;
     }
-    
+
     setLoading(true);
     try {
       // 调用实际API获取订单信息
       const response = await getOrderInfo(orderSn);
-      
+
       if (response.code === 0) {
         // 根据查询结果处理
         if (response.data) {
@@ -49,7 +49,7 @@ function OrderQueryPage() {
       } else {
         message.warning(response.msg || '订单查询结果异常');
       }
-      
+
       // 无论是否查到都跳转到上传页面
       navigate(`/upload?order_sn=${orderSn}`);
     } catch (error) {
@@ -61,16 +61,16 @@ function OrderQueryPage() {
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       marginTop: isMobile ? '20px' : '50px',
       padding: isMobile ? '0 10px' : 0
     }}>
-      <Card 
-        style={{ 
-          width: isMobile ? '100%' : 500, 
+      <Card
+        style={{
+          width: isMobile ? '100%' : 500,
           boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
           borderRadius: '8px'
         }}
@@ -78,30 +78,30 @@ function OrderQueryPage() {
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <Title level={isMobile ? 3 : 2}>订单查询</Title>
         </div>
-        
+
         <Form
           form={form}
           layout="vertical"
           onFinish={handleQuery}
           autoComplete="off"
         >
-          <Form.Item 
-            name="orderSn" 
+          <Form.Item
+            name="orderSn"
             label="订单号"
             rules={[{ required: true, message: '请输入订单号' }]}
           >
-            <Input 
-              placeholder="请输入订单号"
+            <Input
+              placeholder="请输入淘宝订单号"
               size={isMobile ? 'middle' : 'large'}
               allowClear
             />
           </Form.Item>
-          
+
           <Form.Item style={{ marginTop: 24 }}>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              block 
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
               size={isMobile ? 'middle' : 'large'}
               loading={loading}
               icon={<SearchOutlined />}
