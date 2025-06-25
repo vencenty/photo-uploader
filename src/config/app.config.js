@@ -5,8 +5,8 @@
 // 上传相关配置
 export const uploadConfig = {
     // 最大文件大小(字节)，20MB
-    maxFileSize: 20 * 1024 * 1024,
-    
+    maxFileSize: 30 * 1024 * 1024,
+
     // 图片压缩相关配置
     compression: {
       // 是否启用压缩
@@ -20,17 +20,20 @@ export const uploadConfig = {
       // MIME类型
       mimeType: 'image/jpeg',
     },
-    
+
     // 上传超时时间(毫秒)
     timeout: 30000,
-    
+
     // 同时上传的最大数量（移动端降低并发数）
     maxSimultaneousUploads: navigator.userAgent.toLowerCase().includes('mobile') ? 2 : 3,
-    
+
+    // 是否使用图片代理（设为false直接使用CDN URL，避免CDN未预热时的404问题）
+    useImageProxy: false,
+
     // 图片代理URL前缀（用于缩略图显示，压缩过的）
     imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'
   };
-  
+
   export default {
     uploadConfig,
   };

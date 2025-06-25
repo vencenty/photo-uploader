@@ -109,8 +109,8 @@ const PhotoUploader = ({
         const newPhoto = {
           id: Math.random().toString(36).substr(2, 9),
           name: file.name,
-          // 显示用的URL（使用代理URL）
-          url: uploadConfig.imageProxyUrl + photoUrl,
+          // 显示用的URL（根据配置决定是否使用代理）
+          url: uploadConfig.useImageProxy ? uploadConfig.imageProxyUrl + photoUrl : photoUrl,
           status: 'done',
           // 提交时使用的URL（原始URL）
           serverUrl: photoUrl,
@@ -258,7 +258,7 @@ const PhotoUploader = ({
           if (photoIndex !== -1) {
             updatedPhotos[photoIndex] = {
               ...updatedPhotos[photoIndex],
-              url: uploadConfig.imageProxyUrl + photoUrl,
+              url: uploadConfig.useImageProxy ? uploadConfig.imageProxyUrl + photoUrl : photoUrl,
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,
