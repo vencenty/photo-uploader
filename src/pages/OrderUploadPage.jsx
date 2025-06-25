@@ -158,7 +158,7 @@ function OrderUploadPage() {
                   newSizePhotos[item.spec] = item.metadata.map(photoMeta => ({
                     id: uuidv4(),
                     name: photoMeta.url.split('/').pop() || '照片',
-                    url: uploadConfig.useImageProxy ? uploadConfig.imageProxyUrl + photoMeta.url : photoMeta.url,
+                    url: photoMeta.url,
                     serverUrl: photoMeta.url,
                     status: 'done',
                     cropped: photoMeta.is_resized === 1 // 根据is_resized设置cropped状态

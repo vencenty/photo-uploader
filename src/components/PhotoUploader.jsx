@@ -109,10 +109,10 @@ const PhotoUploader = ({
         const newPhoto = {
           id: Math.random().toString(36).substr(2, 9),
           name: file.name,
-          // 显示用的URL（根据配置决定是否使用代理）
-          url: uploadConfig.useImageProxy ? uploadConfig.imageProxyUrl + photoUrl : photoUrl,
+          // 直接使用服务端返回的URL
+          url: photoUrl,
           status: 'done',
-          // 提交时使用的URL（原始URL）
+          // 服务端URL（用于提交）
           serverUrl: photoUrl,
           // 添加压缩标记
           compressed: needCompression,
@@ -258,7 +258,7 @@ const PhotoUploader = ({
           if (photoIndex !== -1) {
             updatedPhotos[photoIndex] = {
               ...updatedPhotos[photoIndex],
-              url: uploadConfig.useImageProxy ? uploadConfig.imageProxyUrl + photoUrl : photoUrl,
+              url: photoUrl,
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,

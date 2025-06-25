@@ -37,20 +37,20 @@
 - 裁剪：使用 `imageOriginalUrl` 和 `imageCropUrl`
 
 ### 修改后的逻辑：
-- **缩略图**：继续使用 `imageProxyUrl` 代理显示（压缩过的，加载快）
-- **预览**：直接使用原图片 URL（`photo.serverUrl`，无代理前缀）
-- **裁剪**：直接使用原图片 URL（`photo.serverUrl`，无代理前缀）
+- **所有图片显示**：直接使用服务端返回的原始URL（`photo.serverUrl`或`photo.url`）
+- **预览**：直接使用原图片 URL，无代理处理
+- **裁剪**：直接使用原图片 URL，无代理处理
+- **缩略图**：直接使用原图片 URL，无代理处理
 
 ### 具体修改内容：
 
 #### 1. 配置文件修改 (`src/config/app.config.js`)
 ```javascript
-// 删除了这两个配置：
-// imageOriginalUrl: 'https://img-proxy.vencenty.cn/insecure/plain/',
-// imageCropUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:1200:0/quality:85/plain/'
-
-// 保留了：
-imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'
+// 完全删除了所有图片代理相关配置：
+// imageProxyUrl: 'https://img-proxy.vencenty.cn/insecure/resize:fit:600:0/quality:70/plain/'
+// useImageProxy: false
+// 
+// 现在直接使用服务端返回的CDN URL，避免代理服务器的延迟和404问题
 ```
 
 #### 2. PhotoUploader 组件修改 (`src/components/PhotoUploader.jsx`)
@@ -79,10 +79,10 @@ preview={{
 6. ✅ 优化了各种组件在移动端的显示效果
 
 ### 图片显示逻辑改进：
-1. ✅ 缩略图使用代理URL，加载速度快
+1. ✅ 所有图片直接使用服务端返回的CDN URL，避免代理服务器404问题
 2. ✅ 预览和裁剪使用原图，画质清晰
-3. ✅ 简化了配置，删除了不必要的URL配置
-4. ✅ 统一了图片处理逻辑，更易维护
+3. ✅ 简化了配置，完全删除了图片代理相关配置
+4. ✅ 统一了图片处理逻辑，更易维护，减少了网络请求链路
 
 ## 使用说明
 
