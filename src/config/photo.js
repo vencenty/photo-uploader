@@ -2,11 +2,6 @@
 // 照片尺寸配置
 export const PHOTO = [
     {
-      "name": "3寸-满版",
-      "aspectRatio": 5/7,
-      "recommendResize": true
-    },
-    {
       "name": "3寸-留白",
       "aspectRatio": 5/7,
       "recommendResize": false,
@@ -25,11 +20,6 @@ export const PHOTO = [
     "name": "3寸-拍立得",
     "aspectRatio": 64/55.4,
     "recommendResize": true,
-    },
-    {
-      "name": "4寸-满版",
-      "aspectRatio": 3/4,
-      "recommendResize": true
     },
     {
       "name": "4寸-留白",
@@ -51,7 +41,7 @@ export const PHOTO = [
       "aspectRatio": 7/10,
       "recommendResize": false
     },
-    
+
     {
       "name": "5寸-拍立得",
       "aspectRatio": 76/102,
