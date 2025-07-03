@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { Button, Tag, Image, Typography } from 'antd';
-import { DeleteOutlined, CompressOutlined, ScissorOutlined, EyeOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
 
 const { Text } = Typography;
@@ -35,7 +35,7 @@ const PhotoItem = React.memo(({
   onCrop,
   onDelete,
   onPreview,
-  showPreview,
+  showPreview, // 是否为留白类型（点击图片触发预览）
   formatFileSize,
   style,
   preset
@@ -75,9 +75,10 @@ const PhotoItem = React.memo(({
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'cover' // 使用cover确保填满正方形区域
+              objectFit: 'cover',
+              cursor: showPreview ? 'pointer' : 'default'
             }}
-            preview={{
+            preview={showPreview ? false : {
               src: photo.serverUrl || photo.url,
               mask: <div style={{
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '12px',
@@ -87,6 +88,7 @@ const PhotoItem = React.memo(({
                 borderRadius: '4px'
               }}>预览</div>
             }}
+            onClick={showPreview ? () => onPreview(photo) : undefined}
             placeholder={
               <div style={{
                 width: '100%',
@@ -103,37 +105,46 @@ const PhotoItem = React.memo(({
           />
 
           {/* 状态标签 */}
-          {(photo.compressed || photo.cropped) && (
-            <div style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px'
-            }}>
-              {photo.compressed && (
-                <Tag color="blue" size="small" style={{
-                  fontSize: '8px',
-                  lineHeight: '12px',
-                  padding: '0 4px',
-                  margin: 0
-                }}>
-                  <CompressOutlined style={{ fontSize: '8px' }} /> 压缩
-                </Tag>
-              )}
-              {photo.cropped && (
-                <Tag color="green" size="small" style={{
-                  fontSize: '8px',
-                  lineHeight: '12px',
-                  padding: '0 4px',
-                  margin: 0
-                }}>
-                  <ScissorOutlined style={{ fontSize: '8px' }} /> 裁剪
-                </Tag>
-              )}
-            </div>
-          )}
+          <div style={{
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px'
+          }}>
+            {/* 留白预览提示 */}
+            {showPreview && (
+              <Tag color="cyan" size="small" style={{
+                fontSize: '8px',
+                lineHeight: '12px',
+                padding: '0 4px',
+                margin: 0
+              }}>
+                📷 点击预览
+              </Tag>
+            )}
+            {photo.compressed && (
+              <Tag color="blue" size="small" style={{
+                fontSize: '8px',
+                lineHeight: '12px',
+                padding: '0 4px',
+                margin: 0
+              }}>
+                <CompressOutlined style={{ fontSize: '8px' }} /> 压缩
+              </Tag>
+            )}
+            {photo.cropped && (
+              <Tag color="green" size="small" style={{
+                fontSize: '8px',
+                lineHeight: '12px',
+                padding: '0 4px',
+                margin: 0
+              }}>
+                <ScissorOutlined style={{ fontSize: '8px' }} /> 裁剪
+              </Tag>
+            )}
+          </div>
         </div>
 
         {/* 信息和按钮区域 - 使用预设高度 */}
@@ -188,37 +199,10 @@ const PhotoItem = React.memo(({
           {/* 按钮区域 - 固定高度 */}
           <div style={{
             display: 'flex',
-            gap: showPreview ? '3px' : '6px', // 有预览按钮时减小间距
+            gap: '6px',
             height: preset === CONTAINER_PRESETS.mobile ? '26px' : '30px',
             marginTop: 'auto'
           }}>
-            {/* 预览按钮 - 仅在留白款式时显示 */}
-            {showPreview && (
-              <Button
-                type="text"
-                icon={<EyeOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
-                onClick={() => onPreview(photo)}
-                size="small"
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
-                  border: '1px solid #1890ff',
-                  borderRadius: '4px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 0,
-                  transition: 'all 0.2s ease',
-                  color: '#1890ff'
-                }}
-                title="预览留白效果"
-              >
-                预览
-              </Button>
-            )}
-
             <Button
               type="text"
               icon={<ScissorOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}

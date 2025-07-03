@@ -133,7 +133,7 @@ const WhiteBorderPreview = ({
 
   // 相纸样式 - 根据aspectRatio动态计算尺寸
   const photoPreviewStyle = {
-    padding: '8px',
+    padding: '4mm',
     background: 'white',
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
     border: '1px solid #ccc',
