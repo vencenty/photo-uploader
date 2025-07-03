@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Space } from 'antd';
-import { RotateLeftOutlined, RotateRightOutlined } from '@ant-design/icons';
-import { getAspectRatioByName } from '../config/photo';
+import React, { useState, useEffect } from 'react';
+import { Modal, Button } from 'antd';
+
 
 /**
  * 留白预览组件
@@ -14,139 +13,112 @@ const WhiteBorderPreview = ({
   size,
   isMobile = false 
 }) => {
-  const [rotation, setRotation] = useState(0); // 旋转角度
-  const [autoRotated, setAutoRotated] = useState(false); // 是否已自动旋转
-  const imageRef = useRef(null);
+  const [processedImageUrl, setProcessedImageUrl] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // 左转90度
-  const rotateLeft = () => {
-    setRotation(prev => prev - 90);
-  };
-
-  // 右转90度
-  const rotateRight = () => {
-    setRotation(prev => prev + 90);
-  };
-
-  // 重置旋转角度
-  const resetRotation = () => {
-    setRotation(0);
-    setAutoRotated(false);
-  };
-
-  // 关闭预览时重置旋转角度
+  // 关闭预览时清理状态
   const handleClose = () => {
-    resetRotation();
+    setProcessedImageUrl('');
+    setIsProcessing(false);
     onClose();
   };
 
-  // 检测图片是否需要自动旋转
-  const checkAutoRotation = () => {
-    if (!imageRef.current) return;
-
-    const img = imageRef.current;
+  // 处理图片 - 参考 photo-preview.html 逻辑
+  const processImage = () => {
+    if (!imageUrl || !visible) return;
     
-    // 确保图片已经加载完成
-    if (!img.naturalWidth || !img.naturalHeight) return;
-
-    const imageAspectRatio = img.naturalWidth / img.naturalHeight;
-    const paperAspectRatio = getAspectRatioByName(size);
-
-    // 判断图片和相纸的方向
-    const imageIsLandscape = imageAspectRatio > 1; // 图片是横向
-    const paperIsLandscape = paperAspectRatio > 1; // 相纸是横向
-
-    // 如果图片和相纸方向不一致，自动旋转90度以最大化显示
-    if (imageIsLandscape !== paperIsLandscape) {
-      setRotation(90);
-      setAutoRotated(true);
-      console.log(`自动旋转图片: 图片宽高比=${imageAspectRatio.toFixed(2)}, 相纸宽高比=${paperAspectRatio.toFixed(2)}`);
-    } else {
-      // 如果方向一致，确保旋转角度为0
-      setRotation(0);
-      setAutoRotated(false);
-      console.log(`无需自动旋转: 图片宽高比=${imageAspectRatio.toFixed(2)}, 相纸宽高比=${paperAspectRatio.toFixed(2)}`);
+    setIsProcessing(true);
+    console.log("🚀 开始处理图片：", imageUrl);
+    
+    const image = new Image();
+    // 尝试设置跨域，如果失败则忽略
+    try {
+      image.crossOrigin = 'anonymous';
+    } catch (e) {
+      console.log("跨域设置失败，继续处理");
     }
+    
+    image.onload = () => {
+      try {
+        const w = image.naturalWidth || image.width;
+        const h = image.naturalHeight || image.height;
+        
+        console.log("🖼️ 图片加载成功！原始尺寸：", w, "x", h);
+        console.log("📐 宽高比：", (w/h).toFixed(2), w > h ? "（横图，需要旋转）" : "（竖图，直接显示）");
+        
+        if (w > h) {
+          console.log("🔄 开始旋转横图...");
+          
+          // 横图需要旋转成竖图（参考 photo-preview.html 逻辑）
+          const canvas = document.createElement("canvas");
+          canvas.width = h;  // 旋转后宽度是原高度
+          canvas.height = w; // 旋转后高度是原宽度
+          const ctx = canvas.getContext("2d");
+          
+          console.log("🎨 Canvas尺寸：", canvas.width, "x", canvas.height);
+          
+          // 移动到画布中心
+          ctx.translate(h / 2, w / 2);
+          // 顺时针旋转90度
+          ctx.rotate(Math.PI / 2);
+          // 绘制图片
+          ctx.drawImage(image, -w / 2, -h / 2, w, h);
+          
+          // 转换为 data URL
+          const rotatedImageUrl = canvas.toDataURL("image/jpeg", 0.95);
+          setProcessedImageUrl(rotatedImageUrl);
+          console.log("✅ 横图旋转完成！");
+        } else {
+          console.log("📱 竖图直接显示，无需处理");
+          // 竖图直接使用原图
+          setProcessedImageUrl(imageUrl);
+        }
+        
+        setIsProcessing(false);
+      } catch (error) {
+        console.error("❌ 图片处理出错：", error);
+        // 出错时使用原图
+        setProcessedImageUrl(imageUrl);
+        setIsProcessing(false);
+      }
+    };
+    
+    image.onerror = (error) => {
+      console.error("❌ 图片加载失败：", error);
+      console.log("📷 尝试直接使用原图URL");
+      setProcessedImageUrl(imageUrl); // 失败时使用原图
+      setIsProcessing(false);
+    };
+    
+    console.log("📥 设置图片源并开始加载...");
+    image.src = imageUrl;
   };
 
-  // 图片加载完成时检查是否需要自动旋转
-  const handleImageLoad = () => {
-    // 延迟一小段时间确保图片完全加载
-    setTimeout(() => {
-      checkAutoRotation();
-    }, 50);
-  };
-
-  // 当 visible 或 imageUrl 改变时重置状态并准备检查自动旋转
+  // 当预览打开或图片URL变化时处理图片
   useEffect(() => {
     if (visible && imageUrl) {
-      setRotation(0);
-      setAutoRotated(false);
-      
-      // 如果图片已经加载，立即检查自动旋转
-      setTimeout(() => {
-        checkAutoRotation();
-      }, 100);
-    }
-  }, [visible, imageUrl, size]); // 添加size依赖
-
-  // 动态计算相纸尺寸 - 根据photo.js中的aspectRatio
-  const getPaperDimensions = () => {
-    const paperAspectRatio = getAspectRatioByName(size);
-    console.log(`${size} 相纸宽高比: ${paperAspectRatio.toFixed(3)} ${paperAspectRatio > 1 ? '(横向)' : '(竖向)'}`);
-    
-    if (isMobile) {
-      // 移动端：基于屏幕宽度的百分比
-      const baseWidth = Math.min(window.innerWidth * 0.8, 350); // 最大350px
-      const width = baseWidth;
-      const height = width / paperAspectRatio;
-      
-      return {
-        width: `${width}px`,
-        height: `${height}px`
-      };
+      processImage();
     } else {
-      // 桌面端：固定基准尺寸
-      const baseSize = 300; // 基准尺寸300px
-      
-      if (paperAspectRatio > 1) {
-        // 横向相纸
-        const width = baseSize;
-        const height = width / paperAspectRatio;
-        return {
-          width: `${width}px`,
-          height: `${height}px`
-        };
-      } else {
-        // 竖向相纸
-        const height = baseSize;
-        const width = height * paperAspectRatio;
-        return {
-          width: `${width}px`,
-          height: `${height}px`
-        };
-      }
+      setProcessedImageUrl('');
+      setIsProcessing(false);
     }
-  };
+  }, [visible, imageUrl]);
 
-  const paperDimensions = getPaperDimensions();
-
-  // 相纸样式 - 根据aspectRatio动态计算尺寸
+  // 相纸样式 - 参考 photo-preview.html，固定为竖向相纸
   const photoPreviewStyle = {
     padding: '4mm',
     background: 'white',
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
     border: '1px solid #ccc',
     boxSizing: 'border-box',
-    width: paperDimensions.width,
-    height: paperDimensions.height,
+    // 参考photo-preview.html的尺寸比例，但适配屏幕大小
+    width: isMobile ? '240px' : '300px',
+    height: isMobile ? '340px' : '425px', // 保持89:127的比例
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    transition: 'transform 0.3s ease',
     margin: '20px auto',
-    transform: `rotate(${rotation}deg)`,
     position: 'relative'
   };
 
@@ -171,91 +143,87 @@ const WhiteBorderPreview = ({
       bodyStyle={{
         padding: isMobile ? '10px' : '20px',
         textAlign: 'center',
-        minHeight: isMobile ? '450px' : '600px'
+        minHeight: isMobile ? '500px' : '650px'
       }}
     >
-      {/* 旋转控制按钮 */}
-      <div style={{ marginBottom: '20px' }}>
-        <Space>
-          <Button 
-            icon={<RotateLeftOutlined />} 
-            onClick={rotateLeft}
-            size={isMobile ? 'small' : 'default'}
-          >
-            左转
-          </Button>
-          <Button 
-            icon={<RotateRightOutlined />} 
-            onClick={rotateRight}
-            size={isMobile ? 'small' : 'default'}
-          >
-            右转
-          </Button>
-          <Button 
-            onClick={resetRotation}
-            size={isMobile ? 'small' : 'default'}
-          >
-            重置
-          </Button>
-        </Space>
-      </div>
 
-             {/* 预览说明 */}
-       <div style={{ 
-         marginBottom: '20px', 
-         padding: '10px',
-         background: '#f0f8ff',
-         borderRadius: '4px',
-         fontSize: isMobile ? '12px' : '14px',
-         color: '#1890ff'
-       }}>
-         <strong>📷 预览说明：</strong>
-         <br />
-         以下展示的是 {size} 留白相纸的实际打印效果，图片会居中显示，四周保留白边。
-         {autoRotated && (
-           <>
-             <br />
-             <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
-               🔄 已自动旋转图片以获得最佳显示效果
-             </span>
-           </>
-         )}
-       </div>
+
+      {/* 预览说明 */}
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '10px',
+        background: '#f0f8ff',
+        borderRadius: '4px',
+        fontSize: isMobile ? '12px' : '14px',
+        color: '#1890ff'
+      }}>
+        <strong>📷 预览说明：</strong>
+        <br />
+        以下展示的是 {size} 留白相纸的实际打印效果，所有图片已自动调整为竖向显示，四周保留白边。
+        {isProcessing && (
+          <>
+            <br />
+            <span style={{ color: '#faad14', fontWeight: 'bold' }}>
+              🔄 正在处理图片中...
+            </span>
+          </>
+        )}
+      </div>
 
       {/* 相纸预览区域 */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center',
-        minHeight: isMobile ? '350px' : '450px',
+        minHeight: isMobile ? '380px' : '480px',
         padding: '20px 0'
       }}>
         <div style={photoPreviewStyle}>
-          {imageUrl && (
+          {isProcessing ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: '#999',
+              fontSize: isMobile ? '12px' : '14px'
+            }}>
+              处理中...
+            </div>
+          ) : processedImageUrl ? (
             <img 
-              ref={imageRef}
-              src={imageUrl} 
+              src={processedImageUrl} 
               alt="预览图片" 
               style={imageStyle}
-              onLoad={handleImageLoad}
             />
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: '#999',
+              fontSize: isMobile ? '12px' : '14px'
+            }}>
+              图片加载失败
+            </div>
           )}
         </div>
       </div>
 
-             {/* 底部提示 */}
-       <div style={{ 
-         marginTop: '20px',
-         fontSize: isMobile ? '11px' : '12px',
-         color: '#666',
-         lineHeight: '1.5'
-       }}>
-         <div>💡 <strong>提示：</strong></div>
-         <div>• 实际打印时会保留白边效果，图片不会被裁切</div>
-         <div>• 系统会自动旋转图片以获得最佳显示效果</div>
-         <div>• 您也可以手动使用旋转功能调整图片方向</div>
-         <div>• 此预览仅供参考，实际效果可能因打印设备略有差异</div>
-       </div>
+      {/* 底部提示 */}
+      <div style={{ 
+        marginTop: '20px',
+        fontSize: isMobile ? '11px' : '12px',
+        color: '#666',
+        lineHeight: '1.5'
+      }}>
+        <div>💡 <strong>提示：</strong></div>
+        <div>• 实际打印时会保留白边效果，图片不会被裁切</div>
+        <div>• 系统已自动将横图调整为竖向显示，模拟真实打印效果</div>
+        <div>• 此预览完全模拟打印机的处理方式</div>
+        <div>• 预览效果仅供参考，实际效果可能因打印设备略有差异</div>
+      </div>
     </Modal>
   );
 };

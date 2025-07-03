@@ -288,7 +288,7 @@ const VirtualPhotoGrid = ({
     const containerHeight = preset.height;
 
     // 计算每列宽度（减去可能的滚动条宽度）
-    const scrollbarWidth = 10;
+    const scrollbarWidth =  10;
     const itemWidth = Math.floor((containerWidth - scrollbarWidth) / columnCount);
 
     // 使用预设的item高度

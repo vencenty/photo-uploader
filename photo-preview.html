@@ -13,8 +13,8 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
             border: 1px solid #ccc;
             box-sizing: border-box;
-            height: 89mm;
-            width: 127mm;
+            height: 127mm;
+            width: 89mm;
 
             display: flex;
             align-items: center;
@@ -79,30 +79,30 @@
         if (file) {
             currentFile = file;
             currentRotation = 0; // 重置旋转角度
-            updateCanvasRotation(); // 重置画布旋转
+            // updateCanvasRotation(); // 重置画布旋转
             handleFile(file);
         }
     });
 
-    rotateLeftBtn.addEventListener("click", function () {
-        if (currentFile) {
-            currentRotation -= 1; // 左转90度
-            updateCanvasRotation();
-        }
-    });
-
-    rotateRightBtn.addEventListener("click", function () {
-        if (currentFile) {
-            currentRotation += 1; // 右转90度
-            updateCanvasRotation();
-        }
-    });
-
-    function updateCanvasRotation() {
-        // 旋转整个相纸预览容器
-        const angle = currentRotation * 90;
-        photoPreview.style.transform = `rotate(${angle}deg)`;
-    }
+    // rotateLeftBtn.addEventListener("click", function () {
+    //     if (currentFile) {
+    //         currentRotation -= 1; // 左转90度
+    //         updateCanvasRotation();
+    //     }
+    // });
+    //
+    // rotateRightBtn.addEventListener("click", function () {
+    //     if (currentFile) {
+    //         currentRotation += 1; // 右转90度
+    //         updateCanvasRotation();
+    //     }
+    // });
+    //
+    // function updateCanvasRotation() {
+    //     // 旋转整个相纸预览容器
+    //     const angle = currentRotation * 90;
+    //     photoPreview.style.transform = `rotate(${angle}deg)`;
+    // }
 
     function handleFile(file) {
         const reader = new FileReader();
@@ -113,7 +113,7 @@
                 const h = image.naturalHeight;
                 console.log("原始宽高：", w, h);
 
-                if (h > w) {
+                if (h < w) {
                     // 是竖图，旋转
                     const canvas = document.createElement("canvas");
                     canvas.width = h;
