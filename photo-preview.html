@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        .photo-preview {
+            padding: 2mm;
+            background: white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            height: 89mm;
+            width: 127mm;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            
+            /* 添加旋转过渡效果 */
+            transition: transform 0.3s ease;
+            margin: 20px auto; /* 确保旋转时有足够空间 */
+        }
+
+        .photo-preview img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .controls {
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .controls button {
+            margin: 0 5px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        /* 为旋转后的画布留出足够空间 */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+<input type="file" name="上传文件" id="file">
+<div class="controls">
+    <button id="rotateLeft">左转</button>
+    <button id="rotateRight">右转</button>
+</div>
+<div class="photo-preview">
+    <img src="" alt="" id="img">
+</div>
+<script>
+    let imgDom = document.querySelector("#img");
+    let fileUploadBtn = document.querySelector("#file");
+    let rotateLeftBtn = document.querySelector("#rotateLeft");
+    let rotateRightBtn = document.querySelector("#rotateRight");
+    let photoPreview = document.querySelector(".photo-preview");
+    
+    // 全局变量
+    let currentFile = null;
+    let currentRotation = 0; // 当前旋转角度（以90度为单位）
+
+    fileUploadBtn.addEventListener("change", function (e) {
+        const file = e.target.files[0];
+        if (file) {
+            currentFile = file;
+            currentRotation = 0; // 重置旋转角度
+            updateCanvasRotation(); // 重置画布旋转
+            handleFile(file);
+        }
+    });
+
+    rotateLeftBtn.addEventListener("click", function () {
+        if (currentFile) {
+            currentRotation -= 1; // 左转90度
+            updateCanvasRotation();
+        }
+    });
+
+    rotateRightBtn.addEventListener("click", function () {
+        if (currentFile) {
+            currentRotation += 1; // 右转90度
+            updateCanvasRotation();
+        }
+    });
+
+    function updateCanvasRotation() {
+        // 旋转整个相纸预览容器
+        const angle = currentRotation * 90;
+        photoPreview.style.transform = `rotate(${angle}deg)`;
+    }
+
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const image = new Image();
+            image.onload = function () {
+                const w = image.naturalWidth;
+                const h = image.naturalHeight;
+                console.log("原始宽高：", w, h);
+
+                if (h > w) {
+                    // 是竖图，旋转
+                    const canvas = document.createElement("canvas");
+                    canvas.width = h;
+                    canvas.height = w;
+                    const ctx = canvas.getContext("2d");
+                    ctx.translate(h / 2, w / 2);
+                    ctx.rotate(Math.PI / 2);
+                    ctx.drawImage(image, -w / 2, -h / 2);
+                    imgDom.src = canvas.toDataURL("image/jpeg");
+                } else {
+                    // 横图直接用原图
+                    imgDom.src = e.target.result;
+                }
+            };
+
+            image.src = e.target.result;
+
+            // 可选：输出文件大小
+            const fileSizeInMB = file.size / (1024 * 1024);
+            console.log("文件大小：", fileSizeInMB.toFixed(2), "MB");
+        };
+
+        // ✅ 关键：开始读取文件
+        reader.readAsDataURL(file);
+    }
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { Button, Tag, Image, Typography } from 'antd';
-import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CompressOutlined, ScissorOutlined, EyeOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
 
 const { Text } = Typography;
@@ -34,6 +34,8 @@ const PhotoItem = React.memo(({
   photo,
   onCrop,
   onDelete,
+  onPreview,
+  showPreview,
   formatFileSize,
   style,
   preset
@@ -186,27 +188,54 @@ const PhotoItem = React.memo(({
           {/* 按钮区域 - 固定高度 */}
           <div style={{
             display: 'flex',
-            gap: '6px', // 增加按钮之间的间距
-            height: preset === CONTAINER_PRESETS.mobile ? '26px' : '30px', // 增加按钮高度
-            marginTop: 'auto' // 让按钮区域推到底部（但有padding间距）
+            gap: showPreview ? '3px' : '6px', // 有预览按钮时减小间距
+            height: preset === CONTAINER_PRESETS.mobile ? '26px' : '30px',
+            marginTop: 'auto'
           }}>
+            {/* 预览按钮 - 仅在留白款式时显示 */}
+            {showPreview && (
+              <Button
+                type="text"
+                icon={<EyeOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
+                onClick={() => onPreview(photo)}
+                size="small"
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
+                  border: '1px solid #1890ff',
+                  borderRadius: '4px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 0,
+                  transition: 'all 0.2s ease',
+                  color: '#1890ff'
+                }}
+                title="预览留白效果"
+              >
+                预览
+              </Button>
+            )}
+
             <Button
               type="text"
-              icon={<ScissorOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px' }} />}
+              icon={<ScissorOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
               onClick={() => onCrop(photo)}
               size="small"
-                              style={{
+              style={{
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
+                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
                 border: '1px solid #d9d9d9',
-                borderRadius: '6px', // 增加圆角
+                borderRadius: '4px',
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 minWidth: 0,
-                transition: 'all 0.2s ease' // 添加过渡效果
+                transition: 'all 0.2s ease'
               }}
             >
               调整
@@ -215,21 +244,21 @@ const PhotoItem = React.memo(({
             <Button
               type="text"
               danger
-              icon={<DeleteOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px' }} />}
+              icon={<DeleteOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
               onClick={() => onDelete(photo.id)}
               size="small"
-                              style={{
+              style={{
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '14px' : '10px',
+                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
                 border: '1px solid #ff4d4f',
-                borderRadius: '6px', // 增加圆角
+                borderRadius: '4px',
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 minWidth: 0,
-                transition: 'all 0.2s ease' // 添加过渡效果
+                transition: 'all 0.2s ease'
               }}
             >
               删除
@@ -248,6 +277,8 @@ const VirtualPhotoGrid = ({
   photos = [],
   onCropPhoto,
   onDeletePhoto,
+  onPreviewPhoto,
+  showPreview = false,
   isMobile = false,
   aspectRatio = 1,
   containerHeight // 这个参数现在会被忽略，使用预设高度
@@ -307,12 +338,14 @@ const VirtualPhotoGrid = ({
         photo={photo}
         onCrop={onCropPhoto}
         onDelete={onDeletePhoto}
+        onPreview={onPreviewPhoto}
+        showPreview={showPreview}
         formatFileSize={formatFileSize}
         style={style}
         preset={layoutConfig.preset}
       />
     );
-  }, [photos, layoutConfig, onCropPhoto, onDeletePhoto, formatFileSize]);
+  }, [photos, layoutConfig, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, formatFileSize]);
 
   // 空状态
   if (photos.length === 0) {

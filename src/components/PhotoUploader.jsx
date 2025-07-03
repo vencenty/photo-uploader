@@ -8,6 +8,7 @@ import { uploadPhoto } from '../services/api';
 import imageCompressor from '../utils/imageCompressor';
 import ImageCropper from './ImageCropper';
 import VirtualPhotoGrid from './VirtualPhotoGrid';
+import WhiteBorderPreview from './WhiteBorderPreview';
 import { getAspectRatioByName } from '../config/photo';
 
 const { processImageBeforeUpload, isCompressionNeeded } = imageCompressor;
@@ -32,6 +33,10 @@ const PhotoUploader = ({
   // 裁剪相关状态
   const [cropperVisible, setCropperVisible] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
+  
+  // 留白预览相关状态
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
   
   // 添加上传队列管理
   const uploadQueueRef = useRef([]);
@@ -293,6 +298,21 @@ const PhotoUploader = ({
   // 获取当前尺寸的宽高比
   const aspectRatio = getAspectRatioByName(size);
   
+  // 判断是否为留白款式
+  const isWhiteBorderSize = size.includes('留白');
+  
+  // 处理预览照片
+  const handlePreviewPhoto = (photo) => {
+    // 检查是否正在上传
+    if (uploadingCount > 0) {
+      message.warning('有照片正在上传，请等待上传完成后再预览');
+      return;
+    }
+    
+    setPreviewPhoto(photo);
+    setPreviewVisible(true);
+  };
+  
 
   
   return (
@@ -334,6 +354,8 @@ const PhotoUploader = ({
             photos={photos}
             onCropPhoto={handleCropPhoto}
             onDeletePhoto={handleDeletePhoto}
+            onPreviewPhoto={handlePreviewPhoto}
+            showPreview={isWhiteBorderSize}
             isMobile={isMobile}
             aspectRatio={aspectRatio}
           />
@@ -349,6 +371,17 @@ const PhotoUploader = ({
           onClose={() => setCropperVisible(false)}
           onCropComplete={handleCropComplete}
           aspectRatio={aspectRatio}
+          isMobile={isMobile}
+        />
+      )}
+      
+      {/* 留白预览组件 */}
+      {previewPhoto && (
+        <WhiteBorderPreview
+          visible={previewVisible}
+          onClose={() => setPreviewVisible(false)}
+          imageUrl={previewPhoto.serverUrl || previewPhoto.url}
+          size={size}
           isMobile={isMobile}
         />
       )}
