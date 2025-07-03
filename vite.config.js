@@ -35,5 +35,13 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', 'core-js'],
     exclude: ['@vitejs/plugin-react']
+  },
+  proxy: {
+    '/user-photos': {
+      target: 'https://edge.vencenty.cc',
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/user-photos/, '')
+    }
   }
+
 })

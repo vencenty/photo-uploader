@@ -313,7 +313,7 @@ const ImageCropper = ({
           fontWeight: 600,
           color: '#333'
         }}>
-          裁剪图片
+          请先调整图片
           <p style={{"color":"red"}}>裁剪框某些情况可能初始化不正确，点击切换方向可解决</p>
         </div>
       }

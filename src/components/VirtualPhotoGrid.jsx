@@ -146,7 +146,7 @@ const PhotoItem = React.memo(({
                 padding: '0 4px',
                 margin: 0
               }}>
-                <ScissorOutlined style={{ fontSize: '8px' }} /> 裁剪
+                <ScissorOutlined style={{ fontSize: '8px' }} /> {previewType === 'fullVersion' ? '已调整' : '裁剪'}
               </Tag>
             )}
           </div>
