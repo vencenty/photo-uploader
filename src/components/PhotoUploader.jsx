@@ -9,6 +9,7 @@ import imageCompressor from '../utils/imageCompressor';
 import ImageCropper from './ImageCropper';
 import VirtualPhotoGrid from './VirtualPhotoGrid';
 import WhiteBorderPreview from './WhiteBorderPreview';
+import FullVersionPreview from './FullVersionPreview';
 import { getAspectRatioByName } from '../config/photo';
 
 const { processImageBeforeUpload, isCompressionNeeded } = imageCompressor;
@@ -37,6 +38,10 @@ const PhotoUploader = ({
   // 留白预览相关状态
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  
+  // 满版预览相关状态
+  const [fullVersionPreviewVisible, setFullVersionPreviewVisible] = useState(false);
+  const [fullVersionPreviewPhoto, setFullVersionPreviewPhoto] = useState(null);
   
   // 添加上传队列管理
   const uploadQueueRef = useRef([]);
@@ -277,6 +282,21 @@ const PhotoUploader = ({
         });
         
         message.success('照片裁剪并上传成功');
+        
+        // 如果是满版类型，裁剪完成后自动打开预览
+        if (isFullVersionSize) {
+          setTimeout(() => {
+            const updatedPhoto = {
+              ...currentPhoto,
+              url: photoUrl,
+              serverUrl: photoUrl,
+              name: croppedFile.name,
+              cropped: true,
+            };
+            setFullVersionPreviewPhoto(updatedPhoto);
+            setFullVersionPreviewVisible(true);
+          }, 500); // 延迟500ms让用户看到成功消息
+        }
       } else {
         message.error(response.msg || '裁剪照片上传失败');
       }
@@ -301,6 +321,9 @@ const PhotoUploader = ({
   // 判断是否为留白款式
   const isWhiteBorderSize = size.includes('留白');
   
+  // 判断是否为满版款式
+  const isFullVersionSize = !isWhiteBorderSize; // 非留白的都是满版
+  
   // 处理预览照片
   const handlePreviewPhoto = (photo) => {
     // 检查是否正在上传
@@ -309,8 +332,23 @@ const PhotoUploader = ({
       return;
     }
     
-    setPreviewPhoto(photo);
-    setPreviewVisible(true);
+    if (isWhiteBorderSize) {
+      // 留白类型直接预览
+      setPreviewPhoto(photo);
+      setPreviewVisible(true);
+    } else if (isFullVersionSize) {
+      // 满版类型，先检查是否已裁剪
+      if (photo.cropped) {
+        // 已裁剪，直接预览
+        setFullVersionPreviewPhoto(photo);
+        setFullVersionPreviewVisible(true);
+      } else {
+        // 未裁剪，提示用户先裁剪
+        message.info('满版照片需要先裁剪调整后才能预览效果');
+        // 自动打开裁剪界面
+        handleCropPhoto(photo);
+      }
+    }
   };
   
 
@@ -355,7 +393,8 @@ const PhotoUploader = ({
             onCropPhoto={handleCropPhoto}
             onDeletePhoto={handleDeletePhoto}
             onPreviewPhoto={handlePreviewPhoto}
-            showPreview={isWhiteBorderSize}
+            showPreview={isWhiteBorderSize || isFullVersionSize}
+            previewType={isWhiteBorderSize ? 'whiteBorder' : 'fullVersion'}
             isMobile={isMobile}
             aspectRatio={aspectRatio}
           />
@@ -381,6 +420,17 @@ const PhotoUploader = ({
           visible={previewVisible}
           onClose={() => setPreviewVisible(false)}
           imageUrl={previewPhoto.serverUrl || previewPhoto.url}
+          size={size}
+          isMobile={isMobile}
+        />
+      )}
+      
+      {/* 满版预览组件 */}
+      {fullVersionPreviewPhoto && (
+        <FullVersionPreview
+          visible={fullVersionPreviewVisible}
+          onClose={() => setFullVersionPreviewVisible(false)}
+          imageUrl={fullVersionPreviewPhoto.serverUrl || fullVersionPreviewPhoto.url}
           size={size}
           isMobile={isMobile}
         />

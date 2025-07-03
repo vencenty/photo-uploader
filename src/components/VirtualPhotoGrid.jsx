@@ -35,7 +35,8 @@ const PhotoItem = React.memo(({
   onCrop,
   onDelete,
   onPreview,
-  showPreview, // 是否为留白类型（点击图片触发预览）
+  showPreview, // 是否为可预览类型（留白或满版）
+  previewType, // 预览类型：'whiteBorder' | 'fullVersion'
   formatFileSize,
   style,
   preset
@@ -113,15 +114,19 @@ const PhotoItem = React.memo(({
             flexDirection: 'column',
             gap: '2px'
           }}>
-            {/* 留白预览提示 */}
+            {/* 预览提示 */}
             {showPreview && (
-              <Tag color="cyan" size="small" style={{
-                fontSize: '8px',
-                lineHeight: '12px',
-                padding: '0 4px',
-                margin: 0
-              }}>
-                📷 点击预览
+              <Tag 
+                color={previewType === 'whiteBorder' ? 'cyan' : 'orange'} 
+                size="small" 
+                style={{
+                  fontSize: '8px',
+                  lineHeight: '12px',
+                  padding: '0 4px',
+                  margin: 0
+                }}
+              >
+                {previewType === 'whiteBorder' ? '📷 点击预览' : '🖼️ 点击预览'}
               </Tag>
             )}
             {photo.compressed && (
@@ -263,6 +268,7 @@ const VirtualPhotoGrid = ({
   onDeletePhoto,
   onPreviewPhoto,
   showPreview = false,
+  previewType = 'whiteBorder', // 'whiteBorder' | 'fullVersion'
   isMobile = false,
   aspectRatio = 1,
   containerHeight // 这个参数现在会被忽略，使用预设高度
@@ -324,12 +330,13 @@ const VirtualPhotoGrid = ({
         onDelete={onDeletePhoto}
         onPreview={onPreviewPhoto}
         showPreview={showPreview}
+        previewType={previewType}
         formatFileSize={formatFileSize}
         style={style}
         preset={layoutConfig.preset}
       />
     );
-  }, [photos, layoutConfig, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, formatFileSize]);
+  }, [photos, layoutConfig, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize]);
 
   // 空状态
   if (photos.length === 0) {
