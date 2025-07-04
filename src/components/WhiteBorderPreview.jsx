@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'antd';
 import { getProxiedImageUrl } from '../utils/imageUtils';
+import { getAspectRatioByName } from '../config/photo';
 
 
 /**
@@ -107,19 +108,28 @@ const WhiteBorderPreview = ({
 
   // 相纸样式 - 参考 photo-preview.html，固定为竖向相纸
   const photoPreviewStyle = {
-    padding: '4mm',
+    padding: '2mm',
     background: 'white',
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
     border: '1px solid #ccc',
     boxSizing: 'border-box',
-    // 参考photo-preview.html的尺寸比例，但适配屏幕大小
-    width: isMobile ? '240px' : '300px',
-    height: isMobile ? '340px' : '425px', // 保持89:127的比例
+    // 根据相纸尺寸的宽高比计算实际预览尺寸
+    ...(() => {
+      const aspectRatio = getAspectRatioByName(size);
+      // 设置基准高度，然后根据宽高比计算宽度
+      const baseHeight = isMobile ? 340 : 425;
+      const calculatedWidth = baseHeight * aspectRatio;
+      
+      return {
+        width: `${calculatedWidth}px`,
+        height: `${baseHeight}px`
+      };
+    })(),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    margin: '20px auto',
+    margin: '0px',
     position: 'relative'
   };
 
@@ -179,7 +189,7 @@ const WhiteBorderPreview = ({
         justifyContent: 'center', 
         alignItems: 'center',
         minHeight: isMobile ? '380px' : '480px',
-        padding: '20px 0'
+        padding: '10px'
       }}>
         <div style={photoPreviewStyle}>
           {isProcessing ? (

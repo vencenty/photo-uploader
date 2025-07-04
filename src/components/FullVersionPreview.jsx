@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'antd';
 import { getProxiedImageUrl } from '../utils/imageUtils';
+import { getAspectRatioByName } from '../config/photo';
 
 /**
  * 满版预览组件
@@ -23,17 +24,75 @@ const FullVersionPreview = ({
     onClose();
   };
 
-  // 处理图片 - 满版照片通常已经裁剪过，直接显示
+  // 处理图片 - 参考 WhiteBorderPreview.jsx 的横图旋转逻辑
   const processImage = () => {
     if (!imageUrl || !visible) return;
     
     setIsProcessing(true);
     console.log("🚀 开始处理满版图片：", imageUrl);
     
-    // 满版照片直接使用原图，因为已经裁剪过
-    setProcessedImageUrl(getProxiedImageUrl(imageUrl));
-    setIsProcessing(false);
-    console.log("✅ 满版图片处理完成");
+    const image = new Image();
+    // 尝试设置跨域，如果失败则忽略
+    try {
+      image.crossOrigin = 'anonymous';
+    } catch (e) {
+      console.log("跨域设置失败，继续处理");
+    }
+    
+    image.onload = () => {
+      try {
+        const w = image.naturalWidth || image.width;
+        const h = image.naturalHeight || image.height;
+        
+        console.log("🖼️ 满版图片加载成功！原始尺寸：", w, "x", h);
+        console.log("📐 宽高比：", (w/h).toFixed(2), w > h ? "（横图，需要旋转）" : "（竖图，直接显示）");
+        
+        if (w > h) {
+          console.log("🔄 开始旋转横图...");
+          
+          // 横图需要旋转成竖图（参考 WhiteBorderPreview.jsx 逻辑）
+          const canvas = document.createElement("canvas");
+          canvas.width = h;  // 旋转后宽度是原高度
+          canvas.height = w; // 旋转后高度是原宽度
+          const ctx = canvas.getContext("2d");
+          
+          console.log("🎨 Canvas尺寸：", canvas.width, "x", canvas.height);
+          
+          // 移动到画布中心
+          ctx.translate(h / 2, w / 2);
+          // 顺时针旋转90度
+          ctx.rotate(Math.PI / 2);
+          // 绘制图片
+          ctx.drawImage(image, -w / 2, -h / 2, w, h);
+          
+          // 转换为 data URL
+          const rotatedImageUrl = canvas.toDataURL("image/jpeg", 0.95);
+          setProcessedImageUrl(rotatedImageUrl);
+          console.log("✅ 满版横图旋转完成！");
+        } else {
+          console.log("📱 满版竖图直接显示，无需处理");
+          // 竖图直接使用原图
+          setProcessedImageUrl(imageUrl);
+        }
+        
+        setIsProcessing(false);
+      } catch (error) {
+        console.error("❌ 满版图片处理出错：", error);
+        // 出错时使用原图
+        setProcessedImageUrl(imageUrl);
+        setIsProcessing(false);
+      }
+    };
+    
+    image.onerror = (error) => {
+      console.error("❌ 满版图片加载失败：", error);
+      console.log("📷 尝试直接使用原图URL");
+      setProcessedImageUrl(imageUrl); // 失败时使用原图
+      setIsProcessing(false);
+    };
+    
+    console.log("📥 设置满版图片源并开始加载...");
+    image.src = getProxiedImageUrl(imageUrl);
   };
 
   // 当预览打开或图片URL变化时处理图片
@@ -52,8 +111,18 @@ const FullVersionPreview = ({
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
     border: 'none',
     padding: 0,
-    width: isMobile ? '280px' : '350px',
-    height: isMobile ? '370px' : '460px',
+    // 根据相纸尺寸的宽高比计算实际预览尺寸
+    ...(() => {
+      const aspectRatio = getAspectRatioByName(size);
+      // 设置基准高度，然后根据宽高比计算宽度
+      const baseHeight = isMobile ? 370 : 460;
+      const calculatedWidth = baseHeight * aspectRatio;
+      
+      return {
+        width: `${calculatedWidth}px`,
+        height: `${baseHeight}px`
+      };
+    })(),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
