@@ -237,48 +237,6 @@ if (!window.performance.now) {
   };
 }
 
-// 导出检查函数
-export const checkBrowserSupport = () => {
-  const support = {
-    fetch: typeof fetch !== 'undefined',
-    formData: typeof FormData !== 'undefined',
-    promise: typeof Promise !== 'undefined',
-    asyncAwait: (function() {
-      try {
-        return (function() {}).constructor('return (async function(){})();')();
-      } catch (e) {
-        return false;
-      }
-    })(),
-    es6: (function() {
-      try {
-        new Function("(a = 0) => a");
-        return true;
-      } catch (err) {
-        return false;
-      }
-    })()
-  };
 
-  console.log('浏览器兼容性检查:', support);
-  return support;
-};
 
-// 显示兼容性警告
-export const showCompatibilityWarning = () => {
-  const support = checkBrowserSupport();
-  
-  if (!support.fetch) {
-    console.warn('您的浏览器不支持Fetch API，已启用兼容模式');
-  }
-  
-  if (!support.promise) {
-    console.error('您的浏览器不支持Promise，某些功能可能无法正常工作');
-  }
-  
-  if (!support.formData) {
-    console.error('您的浏览器不支持FormData，文件上传功能将无法使用');
-  }
-  
-  return support;
-}; 
+ 

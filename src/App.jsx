@@ -5,8 +5,6 @@ import { MenuOutlined } from '@ant-design/icons';
 import OrderQueryPage from './pages/OrderQueryPage';
 import OrderUploadPage from './pages/OrderUploadPage';
 import SubmitSuccessPage from './pages/SubmitSuccessPage';
-import CompatibilityCheck from './components/CompatibilityCheck';
-import CompatibilityWarning from './components/CompatibilityWarning';
 
 const { Header, Content, Footer } = Layout;
 const { Title } = Typography;
@@ -73,8 +71,6 @@ function App() {
   };
 
   return (
-    <CompatibilityCheck>
-      <CompatibilityWarning />
       <Layout className="layout" style={{ minHeight: '100vh' }}>
         <Header style={{ 
           display: 'flex', 
@@ -168,7 +164,6 @@ function App() {
         照片上传系统 ©{new Date().getFullYear()} 
       </Footer>
     </Layout>
-    </CompatibilityCheck>
   );
 }
 

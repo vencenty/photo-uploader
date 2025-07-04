@@ -12,10 +12,7 @@ export const getBrowserInfo = () => {
     isSafari: false,
     isChrome: false,
     isFirefox: false,
-    isEdge: false,
-    isBaidu: false,
-    isWechat: false,
-    isWeibo: false
+    isEdge: false
   };
 
   // 检测移动端
@@ -28,20 +25,7 @@ export const getBrowserInfo = () => {
   browser.isAndroid = /android/i.test(ua);
 
   // 检测具体浏览器
-  if (ua.includes('baiduboxapp') || ua.includes('baidubrowser')) {
-    browser.name = 'baidu';
-    browser.isBaidu = true;
-    const match = ua.match(/baiduboxapp\/([0-9\.]+)/);
-    if (match) browser.version = match[1];
-  } else if (ua.includes('micromessenger')) {
-    browser.name = 'wechat';
-    browser.isWechat = true;
-    const match = ua.match(/micromessenger\/([0-9\.]+)/);
-    if (match) browser.version = match[1];
-  } else if (ua.includes('weibo')) {
-    browser.name = 'weibo';
-    browser.isWeibo = true;
-  } else if (ua.includes('edg/')) {
+  if (ua.includes('edg/')) {
     browser.name = 'edge';
     browser.isEdge = true;
     const match = ua.match(/edg\/([0-9\.]+)/);
@@ -66,75 +50,7 @@ export const getBrowserInfo = () => {
   return browser;
 };
 
-// 检查浏览器是否需要特殊处理
-export const needsCompatibilityMode = () => {
-  const browser = getBrowserInfo();
-  
-  // Safari 版本检查
-  if (browser.isSafari) {
-    const version = parseFloat(browser.version);
-    return version < 14; // Safari 14以下版本需要兼容性处理
-  }
-  
-  // 百度浏览器通常需要特殊处理
-  if (browser.isBaidu) {
-    return true;
-  }
-  
-  // 微信内置浏览器
-  if (browser.isWechat) {
-    return true;
-  }
-  
-  // 微博内置浏览器
-  if (browser.isWeibo) {
-    return true;
-  }
-  
-  return false;
-};
 
-// 获取兼容性建议
-export const getCompatibilityAdvice = () => {
-  const browser = getBrowserInfo();
-  
-  if (browser.isBaidu) {
-    return {
-      type: 'warning',
-      message: '检测到百度浏览器，建议使用系统自带浏览器以获得更好体验',
-      action: '切换浏览器'
-    };
-  }
-  
-  if (browser.isSafari) {
-    const version = parseFloat(browser.version);
-    if (version < 14) {
-      return {
-        type: 'error',
-        message: `Safari版本过低(${browser.version})，建议升级到14.0或更高版本`,
-        action: '升级Safari'
-      };
-    }
-  }
-  
-  if (browser.isWechat) {
-    return {
-      type: 'info',
-      message: '检测到微信浏览器，如遇问题请使用系统默认浏览器打开',
-      action: '复制链接'
-    };
-  }
-  
-  if (browser.isWeibo) {
-    return {
-      type: 'info',
-      message: '检测到微博浏览器，如遇问题请使用系统默认浏览器打开',
-      action: '复制链接'
-    };
-  }
-  
-  return null;
-};
 
 // 设置浏览器特定的样式和行为
 export const applyBrowserSpecificFixes = () => {
@@ -163,26 +79,7 @@ export const applyBrowserSpecificFixes = () => {
     document.head.appendChild(style);
   }
   
-  // 百度浏览器特定修复
-  if (browser.isBaidu) {
-    // 禁用一些可能有问题的功能
-    window.BAIDU_BROWSER_MODE = true;
-    
-    const style = document.createElement('style');
-    style.textContent = `
-      /* 百度浏览器兼容性修复 */
-      .ant-modal {
-        -webkit-transform: translateZ(0);
-      }
-      
-      /* 简化动画效果 */
-      * {
-        -webkit-animation-duration: 0.1s !important;
-        animation-duration: 0.1s !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }
+
   
   // iOS特定修复
   if (browser.isIOS) {
@@ -198,38 +95,7 @@ export const applyBrowserSpecificFixes = () => {
     document.body.style.overscrollBehavior = 'none';
   }
   
-  // 微信浏览器特定修复
-  if (browser.isWechat) {
-    // 禁用微信的手势返回
-    window.history.pushState(null, null, window.location.href);
-    window.addEventListener('popstate', () => {
-      window.history.pushState(null, null, window.location.href);
-    });
-    
-    // 修复微信浏览器的文件上传问题
-    const style = document.createElement('style');
-    style.textContent = `
-      /* 微信浏览器文件上传修复 */
-      input[type="file"] {
-        -webkit-appearance: none;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-      }
-      
-      .ant-upload {
-        display: block !important;
-      }
-      
-      /* 防止微信浏览器的默认样式影响 */
-      .ant-upload-list-item {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-      }
-    `;
-    document.head.appendChild(style);
-  }
+
   
   // 通用移动端修复
   if (browser.isMobile) {

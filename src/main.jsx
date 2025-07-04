@@ -6,12 +6,8 @@ import './index.css'
 import { initMobileOptimization } from './utils/mobileOptimization'
 // 导入polyfills以提供兼容性支持
 import './utils/polyfills.js'
-import { showCompatibilityWarning } from './utils/polyfills.js'
 import { setupGlobalErrorHandler, detectBrowserFeatures } from './utils/errorHandler.js'
 import { getBrowserInfo, applyBrowserSpecificFixes } from './utils/browserDetect.js'
-
-// 检查浏览器兼容性
-showCompatibilityWarning()
 
 // 检测浏览器特性
 const browserFeatures = detectBrowserFeatures()
