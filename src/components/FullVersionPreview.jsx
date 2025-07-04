@@ -48,11 +48,10 @@ const FullVersionPreview = ({
 
   // 相纸样式 - 满版相纸，填满整个区域
   const photoPreviewStyle = {
-    padding: '2px', // 很小的padding模拟相纸边缘
-    background: 'white',
+    background: 'transparent', // 不要白色
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
-    border: '1px solid #ccc',
-    boxSizing: 'border-box',
+    border: 'none',
+    padding: 0,
     width: isMobile ? '280px' : '350px',
     height: isMobile ? '370px' : '460px',
     display: 'flex',
@@ -66,7 +65,7 @@ const FullVersionPreview = ({
   const imageStyle = {
     width: '100%',
     height: '100%',
-    objectFit: 'cover' // 满版使用cover，填满整个区域
+    objectFit: 'cover' // 满版必须用cover
   };
 
   return (
