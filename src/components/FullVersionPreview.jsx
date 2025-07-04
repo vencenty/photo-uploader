@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'antd';
+import { getProxiedImageUrl } from '../utils/imageUtils';
 
 /**
  * 满版预览组件
@@ -30,7 +31,7 @@ const FullVersionPreview = ({
     console.log("🚀 开始处理满版图片：", imageUrl);
     
     // 满版照片直接使用原图，因为已经裁剪过
-    setProcessedImageUrl(imageUrl);
+    setProcessedImageUrl(getProxiedImageUrl(imageUrl));
     setIsProcessing(false);
     console.log("✅ 满版图片处理完成");
   };

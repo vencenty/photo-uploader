@@ -29,19 +29,36 @@ export default defineConfig({
   server: {
     fs: {
       strict: false
+    },
+    proxy: {
+      '/user-photos': {
+        target: 'https://edge.vencenty.cc',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/user-photos/, '/user-photos'),
+        secure: true,
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('代理错误:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('代理请求:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('代理响应:', proxyRes.statusCode, req.url);
+          });
+        }
+      },
+      '/api': {
+        target: 'https://photo-kits-server.vencenty.cc',
+        changeOrigin: true,
+        secure: true
+      }
     }
   },
   // 优化依赖预构建
   optimizeDeps: {
     include: ['react', 'react-dom', 'antd', 'core-js'],
     exclude: ['@vitejs/plugin-react']
-  },
-  proxy: {
-    '/user-photos': {
-      target: 'https://edge.vencenty.cc',
-      changeOrigin: true,
-      rewrite: (path) => path.replace(/^\/user-photos/, '')
-    }
   }
 
 })

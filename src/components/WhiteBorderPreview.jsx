@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'antd';
+import { getProxiedImageUrl } from '../utils/imageUtils';
 
 
 /**
@@ -91,7 +92,7 @@ const WhiteBorderPreview = ({
     };
     
     console.log("📥 设置图片源并开始加载...");
-    image.src = imageUrl;
+    image.src = getProxiedImageUrl(imageUrl);
   };
 
   // 当预览打开或图片URL变化时处理图片

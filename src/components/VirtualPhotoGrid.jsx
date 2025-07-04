@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Button, Tag, Image, Typography } from 'antd';
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
+import { getProxiedImageUrl } from '../utils/imageUtils';
 
 const { Text } = Typography;
 
@@ -71,7 +72,7 @@ const PhotoItem = React.memo(({
           margin: '0 auto' // 水平居中
         }}>
           <Image
-            src={photo.url}
+            src={getProxiedImageUrl(photo.url)}
             alt={photo.name}
             style={{
               width: '100%',
@@ -80,7 +81,7 @@ const PhotoItem = React.memo(({
               cursor: showPreview ? 'pointer' : 'default'
             }}
             preview={showPreview ? false : {
-              src: photo.serverUrl || photo.url,
+              src: getProxiedImageUrl(photo.serverUrl || photo.url),
               mask: <div style={{
                 fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '12px',
                 background: 'rgba(0,0,0,0.5)',

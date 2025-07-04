@@ -3,6 +3,7 @@ import { Modal, Button, message } from 'antd';
 import { SwapOutlined } from '@ant-design/icons';
 import ReactCrop from 'react-easy-crop';
 import styled from 'styled-components';
+import { createImageWithProxy, getProxiedImageUrl } from '../utils/imageUtils';
 
 const StyledCropContainer = styled.div`
   position: relative;
@@ -387,7 +388,7 @@ const ImageCropper = ({
           </div>
         )}
         <ReactCrop
-          image={image}
+          image={getProxiedImageUrl(image)}
           crop={crop}
           zoom={zoom}
           aspect={currentAspectRatio}
@@ -440,7 +441,7 @@ const ImageCropper = ({
  */
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   console.log('开始加载图片:', imageSrc);
-  const image = await createImage(imageSrc);
+  const image = await createImageWithProxy(imageSrc, false);
   console.log('图片加载完成:', image.width, 'x', image.height);
 
   const canvas = document.createElement('canvas');
@@ -486,36 +487,6 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   });
 };
 
-/**
- * 创建图像对象
- * @param {string} url 图片URL
- * @returns {Promise<HTMLImageElement>}
- */
-const createImage = (url) => {
-  return new Promise((resolve, reject) => {
-    // 设置15秒超时
-    const timeout = setTimeout(() => {
-      console.error('图片加载超时:', url);
-      reject(new Error('图片加载超时'));
-    }, 15000);
 
-    const image = new Image();
-
-    image.addEventListener('load', () => {
-      clearTimeout(timeout);
-      console.log('图片加载成功:', url);
-      resolve(image);
-    });
-
-    image.addEventListener('error', (error) => {
-      clearTimeout(timeout);
-      console.error('图片加载失败:', url, error);
-      reject(error);
-    });
-
-    image.setAttribute('crossOrigin', 'anonymous');
-    image.src = url;
-  });
-};
 
 export default ImageCropper;
