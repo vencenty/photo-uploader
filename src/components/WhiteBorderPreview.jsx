@@ -141,10 +141,12 @@ const WhiteBorderPreview = ({
       ]}
       width={isMobile ? '95%' : 800}
       centered
-      bodyStyle={{
-        padding: isMobile ? '10px' : '20px',
-        textAlign: 'center',
-        minHeight: isMobile ? '500px' : '650px'
+      styles={{
+        body: {
+          padding: isMobile ? '10px' : '20px',
+          textAlign: 'center',
+          minHeight: isMobile ? '500px' : '650px'
+        }
       }}
     >
 

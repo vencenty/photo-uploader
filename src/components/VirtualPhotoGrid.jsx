@@ -6,26 +6,48 @@ import { getProxiedImageUrl } from '../utils/imageUtils';
 
 const { Text } = Typography;
 
-// 预定义的容器尺寸配置 - 使用正方形图片预览区域
-const CONTAINER_PRESETS = {
-  mobile: {
-    width: 350,        // 固定宽度350px
-    height: 480,       // 固定高度480px (增加高度适应间距)
-    itemHeight: 260,   // 每个item高度230px (增加10px间距)
-    imageSize: 140,    // 图片区域正方形尺寸140px×140px
-    infoHeight: 75,    // 信息区域高度75px
-    margin: 5,         // 边距5px (增加边距)
-    verticalGap: 10    // 垂直间距10px
-  },
-  desktop: {
-    width: 620,        // 固定宽度620px
-    height: 520,       // 固定高度520px (增加高度适应间距)
-    itemHeight: 260,   // 每个item高度260px (增加10px间距)
-    imageSize: 160,    // 图片区域正方形尺寸160px×160px
-    infoHeight: 85,    // 信息区域高度85px
-    margin: 6,         // 边距6px (增加边距)
-    verticalGap: 12    // 垂直间距12px
-  }
+// 响应式配置 - 基于百分比和视口宽度计算
+const getResponsiveConfig = (containerWidth, isMobile) => {
+  // 基础间距配置
+  const baseMargin = isMobile ? 8 : 12;
+  const columnCount = 2;
+  const scrollbarWidth = 15;
+  
+  // 计算可用宽度
+  const availableWidth = Math.max(300, containerWidth - scrollbarWidth);
+  const itemWidth = Math.floor(availableWidth / columnCount);
+  
+  // 计算图片尺寸（保持正方形，占用item宽度的70%）
+  const imageSize = Math.floor(itemWidth * 0.7);
+  
+  // 动态计算item高度（图片 + 信息区域 + 间距）
+  const infoHeight = isMobile ? 80 : 90;
+  const itemHeight = imageSize + infoHeight + baseMargin * 2;
+  
+  // 计算容器高度（最大显示2.5行，确保滚动效果）
+  const maxVisibleRows = 2.5;
+  const containerHeight = Math.min(
+    itemHeight * maxVisibleRows,
+    window.innerHeight * 0.6 // 不超过屏幕高度的60%
+  );
+  
+  return {
+    containerWidth: availableWidth,
+    containerHeight,
+    itemWidth,
+    itemHeight,
+    imageSize,
+    infoHeight,
+    margin: baseMargin,
+    columnCount,
+    // 响应式字体大小
+    fontSize: {
+      title: isMobile ? 11 : 12,
+      info: isMobile ? 9 : 10,
+      button: isMobile ? 9 : 10,
+      tag: isMobile ? 8 : 9
+    }
+  };
 };
 
 /**
@@ -40,16 +62,15 @@ const PhotoItem = React.memo(({
   previewType, // 预览类型：'whiteBorder' | 'fullVersion'
   formatFileSize,
   style,
-  preset
+  config // 使用响应式配置替代preset
 }) => {
-  const { imageSize, infoHeight, margin, verticalGap } = preset;
+  const { imageSize, infoHeight, margin, fontSize } = config;
 
   return (
     <div style={style}>
       <div style={{
         margin: `${margin}px`,
-        marginBottom: `${margin + 15}px`, // 简单直接增加底部间距15px
-        height: `calc(100% - ${margin * 2 + 15}px)`,
+        height: `calc(100% - ${margin * 2}px)`,
         background: '#fff',
         borderRadius: '8px',
         overflow: 'hidden',
@@ -83,7 +104,7 @@ const PhotoItem = React.memo(({
             preview={showPreview ? false : {
               src: getProxiedImageUrl(photo.serverUrl || photo.url),
               mask: <div style={{
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '12px',
+                fontSize: `${fontSize.info}px`,
                 background: 'rgba(0,0,0,0.5)',
                 color: 'white',
                 padding: '4px 8px',
@@ -99,7 +120,7 @@ const PhotoItem = React.memo(({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#999',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '12px'
+                fontSize: `${fontSize.info}px`
               }}>
                 加载中...
               </div>
@@ -121,8 +142,8 @@ const PhotoItem = React.memo(({
                 color={previewType === 'whiteBorder' ? 'cyan' : 'orange'} 
                 size="small" 
                 style={{
-                  fontSize: '8px',
-                  lineHeight: '12px',
+                  fontSize: `${fontSize.tag}px`,
+                  lineHeight: `${fontSize.tag + 4}px`,
                   padding: '0 4px',
                   margin: 0
                 }}
@@ -132,22 +153,22 @@ const PhotoItem = React.memo(({
             )}
             {photo.compressed && (
               <Tag color="blue" size="small" style={{
-                fontSize: '8px',
-                lineHeight: '12px',
+                fontSize: `${fontSize.tag}px`,
+                lineHeight: `${fontSize.tag + 4}px`,
                 padding: '0 4px',
                 margin: 0
               }}>
-                <CompressOutlined style={{ fontSize: '8px' }} /> 压缩
+                <CompressOutlined style={{ fontSize: `${fontSize.tag}px` }} /> 压缩
               </Tag>
             )}
             {photo.cropped && (
               <Tag color="green" size="small" style={{
-                fontSize: '8px',
-                lineHeight: '12px',
+                fontSize: `${fontSize.tag}px`,
+                lineHeight: `${fontSize.tag + 4}px`,
                 padding: '0 4px',
                 margin: 0
               }}>
-                <ScissorOutlined style={{ fontSize: '8px' }} /> {previewType === 'fullVersion' ? '已调整' : '裁剪'}
+                <ScissorOutlined style={{ fontSize: `${fontSize.tag}px` }} /> {previewType === 'fullVersion' ? '已调整' : '裁剪'}
               </Tag>
             )}
           </div>
@@ -157,7 +178,7 @@ const PhotoItem = React.memo(({
         <div style={{
           width: '100%', // 确保信息区域占满容器宽度
           height: `${infoHeight}px`,
-          padding: preset === CONTAINER_PRESETS.mobile ? '6px 8px 8px 8px' : '8px 10px 10px 10px', // 增加底部padding
+          padding: `6px ${margin}px ${margin}px ${margin}px`, // 响应式padding
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#fff',
@@ -166,7 +187,7 @@ const PhotoItem = React.memo(({
         }}>
           {/* 文件信息区域 */}
           <div style={{
-            height: preset === CONTAINER_PRESETS.mobile ? '40px' : '45px', // 减少高度为底部间距腾出空间
+            height: `${Math.floor(infoHeight * 0.6)}px`, // 动态计算信息区域高度
             marginBottom: '6px',
             display: 'flex',
             flexDirection: 'column',
@@ -174,7 +195,7 @@ const PhotoItem = React.memo(({
           }}>
             <div
               style={{
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '10px' : '11px',
+                fontSize: `${fontSize.title}px`,
                 fontWeight: 500,
                 color: '#333',
                 lineHeight: 1.3,
@@ -182,7 +203,7 @@ const PhotoItem = React.memo(({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
-                WebkitLineClamp: preset === CONTAINER_PRESETS.mobile ? 2 : 3,
+                WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 flex: 1
               }}
@@ -192,7 +213,7 @@ const PhotoItem = React.memo(({
             </div>
             {photo.compressedSize && (
               <div style={{
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
+                fontSize: `${fontSize.info}px`,
                 color: '#999',
                 marginTop: '2px',
                 lineHeight: 1
@@ -206,18 +227,18 @@ const PhotoItem = React.memo(({
           <div style={{
             display: 'flex',
             gap: '6px',
-            height: preset === CONTAINER_PRESETS.mobile ? '26px' : '30px',
+            height: `${Math.floor(infoHeight * 0.35)}px`, // 动态计算按钮区域高度
             marginTop: 'auto'
           }}>
             <Button
               type="text"
-              icon={<ScissorOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
+              icon={<ScissorOutlined style={{ fontSize: `${fontSize.button}px` }} />}
               onClick={() => onCrop(photo)}
               size="small"
               style={{
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
+                fontSize: `${fontSize.button}px`,
                 border: '1px solid #d9d9d9',
                 borderRadius: '4px',
                 padding: 0,
@@ -234,13 +255,13 @@ const PhotoItem = React.memo(({
             <Button
               type="text"
               danger
-              icon={<DeleteOutlined style={{ fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px' }} />}
+              icon={<DeleteOutlined style={{ fontSize: `${fontSize.button}px` }} />}
               onClick={() => onDelete(photo.id)}
               size="small"
               style={{
                 flex: 1,
                 height: '100%',
-                fontSize: preset === CONTAINER_PRESETS.mobile ? '8px' : '9px',
+                fontSize: `${fontSize.button}px`,
                 border: '1px solid #ff4d4f',
                 borderRadius: '4px',
                 padding: 0,
@@ -261,7 +282,7 @@ const PhotoItem = React.memo(({
 });
 
 /**
- * 使用预定义尺寸的虚拟滚动照片网格组件
+ * 响应式虚拟滚动照片网格组件
  */
 const VirtualPhotoGrid = ({
   photos = [],
@@ -272,8 +293,37 @@ const VirtualPhotoGrid = ({
   previewType = 'whiteBorder', // 'whiteBorder' | 'fullVersion'
   isMobile = false,
   aspectRatio = 1,
-  containerHeight // 这个参数现在会被忽略，使用预设高度
+  containerHeight // 这个参数现在会被忽略，使用响应式计算
 }) => {
+  // 容器引用，用于获取实际宽度
+  const containerRef = React.useRef(null);
+  const [containerWidth, setContainerWidth] = React.useState(isMobile ? 350 : 620);
+
+  // 监听容器宽度变化
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        // 获取父元素的实际宽度，减去padding
+        const parentWidth = rect.width || containerRef.current.offsetWidth;
+        setContainerWidth(Math.max(300, parentWidth));
+      }
+    };
+
+    // 初始化设置
+    updateWidth();
+
+    // 监听窗口大小变化
+    const resizeObserver = new ResizeObserver(updateWidth);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   // 格式化文件大小
   const formatFileSize = useCallback((bytes) => {
     if (!bytes) return '';
@@ -282,34 +332,10 @@ const VirtualPhotoGrid = ({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }, []);
 
-  // 使用预定义的布局配置
+  // 使用响应式布局配置
   const layoutConfig = useMemo(() => {
-    // 选择预设配置
-    const preset = isMobile ? CONTAINER_PRESETS.mobile : CONTAINER_PRESETS.desktop;
-
-    // 固定2列
-    const columnCount = 2;
-
-    // 使用预设的容器宽度和高度
-    const containerWidth = preset.width;
-    const containerHeight = preset.height;
-
-    // 计算每列宽度（减去可能的滚动条宽度）
-    const scrollbarWidth =  10;
-    const itemWidth = Math.floor((containerWidth - scrollbarWidth) / columnCount);
-
-    // 使用预设的item高度
-    const itemHeight = preset.itemHeight;
-
-    return {
-      columnCount,
-      itemWidth,
-      itemHeight,
-      containerWidth,
-      containerHeight,
-      preset
-    };
-  }, [isMobile]);
+    return getResponsiveConfig(containerWidth, isMobile);
+  }, [containerWidth, isMobile]);
 
   // 计算行数
   const rowCount = Math.ceil(photos.length / layoutConfig.columnCount);
@@ -334,7 +360,7 @@ const VirtualPhotoGrid = ({
         previewType={previewType}
         formatFileSize={formatFileSize}
         style={style}
-        preset={layoutConfig.preset}
+        config={layoutConfig}
       />
     );
   }, [photos, layoutConfig, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize]);
@@ -342,7 +368,7 @@ const VirtualPhotoGrid = ({
   // 空状态
   if (photos.length === 0) {
     return (
-      <div style={{
+      <div ref={containerRef} style={{
         textAlign: 'center',
         padding: isMobile ? '30px 15px' : '40px 20px',
         color: '#999',
@@ -350,7 +376,8 @@ const VirtualPhotoGrid = ({
         borderRadius: '8px',
         border: '1px dashed #d9d9d9',
         fontSize: isMobile ? '14px' : '16px',
-        maxWidth: `${layoutConfig.containerWidth}px`,
+        width: '100%',
+        maxWidth: '100%',
         margin: '0 auto'
       }}>
         暂无照片，请先上传照片
@@ -360,15 +387,19 @@ const VirtualPhotoGrid = ({
 
   // 渲染网格
   return (
-    <div style={{
-      width: `${layoutConfig.containerWidth}px`,
-      height: `${layoutConfig.containerHeight}px`,
-      margin: '0 auto',
-      border: '1px solid #e8e8e8',
-      borderRadius: '8px',
-      overflow: 'hidden',
-      backgroundColor: '#f8f9fa'
-    }}>
+    <div 
+      ref={containerRef}
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        height: `${layoutConfig.containerHeight}px`,
+        margin: '0 auto',
+        border: '1px solid #e8e8e8',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        backgroundColor: '#f8f9fa'
+      }}
+    >
       <Image.PreviewGroup>
         <Grid
           columnCount={layoutConfig.columnCount}
