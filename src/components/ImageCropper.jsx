@@ -441,7 +441,7 @@ const ImageCropper = ({
  */
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   console.log('开始加载图片:', imageSrc);
-  const image = await createImageWithProxy(imageSrc, false);
+  const image = await createImageWithProxy(imageSrc, true);
   console.log('图片加载完成:', image.width, 'x', image.height);
 
   const canvas = document.createElement('canvas');
