@@ -3,6 +3,7 @@ import { Button, Tag, Image, Typography } from 'antd';
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { getProxiedImageUrl } from '../utils/imageUtils';
+import { getAspectRatioByName } from '../config/photo';
 
 const { Text } = Typography;
 
@@ -43,11 +44,52 @@ const PhotoItem = React.memo(({
   formatFileSize,
   style,
   itemWidth,
-  itemHeight
+  itemHeight,
+  size
 }) => {
-  // 图片区80%，按钮区20%
+  // 获取相纸尺寸比例
+  const aspectRatio = getAspectRatioByName(size);
+  
+  // 判断是否为横图（需要旋转）
+  const isHorizontal = photo.width > photo.height;
+  
+  // 判断是否为留白类型
+  const isWhiteBorder = size.includes('留白');
+  
+  // 计算预览框的实际尺寸
   const imageHeight = Math.floor(itemHeight * 0.8);
   const btnHeight = itemHeight - imageHeight;
+  
+  // 根据相纸比例调整预览框尺寸
+  const previewWidth = itemWidth - 16; // 减去padding
+  const previewHeight = imageHeight;
+  
+  // 计算实际显示尺寸
+  let displayWidth, displayHeight;
+  if (previewWidth / previewHeight > aspectRatio) {
+    // 容器更宽，以高度为准
+    displayHeight = previewHeight - 16; // 减去一些边距
+    displayWidth = displayHeight * aspectRatio;
+  } else {
+    // 容器更高，以宽度为准
+    displayWidth = previewWidth - 16; // 减去一些边距
+    displayHeight = displayWidth / aspectRatio;
+  }
+  
+  // 图片样式
+  const imageStyle = {
+    width: displayWidth,
+    height: displayHeight,
+    objectFit: isWhiteBorder ? 'contain' : 'cover',
+    cursor: showPreview ? 'pointer' : 'default',
+    transform: isHorizontal && !isWhiteBorder ? 'rotate(90deg)' : 'none',
+    transformOrigin: 'center',
+    borderRadius: isWhiteBorder ? '4px' : '0px',
+    background: isWhiteBorder ? '#fff' : 'transparent',
+    padding: isWhiteBorder ? '4px' : '0px',
+    border: isWhiteBorder ? '1px solid #e6e6e6' : 'none',
+  };
+  
   return (
     <div style={{ ...style, padding: 8, boxSizing: 'border-box' }}>
       <div style={{
@@ -76,13 +118,13 @@ const PhotoItem = React.memo(({
           <Image
             src={getProxiedImageUrl(photo.url)}
             alt={photo.name}
-            style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', cursor: showPreview ? 'pointer' : 'default' }}
+            style={imageStyle}
             preview={showPreview ? false : {
               src: getProxiedImageUrl(photo.serverUrl || photo.url),
               mask: <div style={{ fontSize: 12, background: 'rgba(0,0,0,0.5)', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>预览</div>
             }}
             onClick={showPreview ? () => onPreview(photo) : undefined}
-            placeholder={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
+            placeholder={<div style={{ width: displayWidth, height: displayHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
           />
           {/* 状态标签 */}
           <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -135,7 +177,7 @@ const VirtualPhotoGrid = ({
   showPreview = false,
   previewType = 'whiteBorder',
   isMobile = false,
-  aspectRatio = 1,
+  size = '3寸',
   containerHeight
 }) => {
   const { containerRef, containerWidth, columnCount, itemWidth, itemHeight } = useGridLayout(isMobile, photos.length);
@@ -169,9 +211,10 @@ const VirtualPhotoGrid = ({
         style={style}
         itemWidth={itemWidth}
         itemHeight={itemHeight}
+                  size={size}
       />
     );
-  }, [photos, columnCount, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize, itemWidth, itemHeight]);
+  }, [photos, columnCount, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize, itemWidth, itemHeight, size]);
 
   // 空状态
   if (photos.length === 0) {

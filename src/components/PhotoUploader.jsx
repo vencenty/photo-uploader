@@ -396,7 +396,7 @@ const PhotoUploader = ({
             showPreview={isWhiteBorderSize || isFullVersionSize}
             previewType={isWhiteBorderSize ? 'whiteBorder' : 'fullVersion'}
             isMobile={isMobile}
-            aspectRatio={aspectRatio}
+            size={size}
           />
         </div>
       )}
