@@ -107,12 +107,12 @@ export const PHOTO = [
       "aspectRatio": 4/5
     },
     {
-      "name": "12寸-满版",
+      "name": "A4-满版",
       "aspectRatio": 1/1.414,
       "recommendResize": true
     },
     {
-      "name": "12寸-留白",
+      "name": "A4-留白",
       "aspectRatio": 1/1.414
     }
   ]
