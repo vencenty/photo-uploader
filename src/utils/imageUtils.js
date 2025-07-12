@@ -110,3 +110,78 @@ export const preloadImages = async (imageUrls) => {
   await Promise.allSettled(promises);
   console.log('图片预加载完成');
 }; 
+
+/**
+ * 处理图片旋转 - 如果是横图则旋转90度
+ * @param {string} imageUrl 图片URL
+ * @returns {Promise<string>} 处理后的图片URL
+ */
+export const processImageRotation = (imageUrl) => {
+  return new Promise((resolve, reject) => {
+    if (!imageUrl) {
+      resolve(imageUrl);
+      return;
+    }
+    
+    console.log("🚀 开始处理图片旋转：", imageUrl);
+    
+    const image = new Image();
+    // 尝试设置跨域，如果失败则忽略
+    try {
+      image.crossOrigin = 'anonymous';
+    } catch (e) {
+      console.log("跨域设置失败，继续处理");
+    }
+    
+    image.onload = () => {
+      try {
+        const w = image.naturalWidth || image.width;
+        const h = image.naturalHeight || image.height;
+        
+        console.log("🖼️ 图片加载成功！原始尺寸：", w, "x", h);
+        console.log("📐 宽高比：", (w/h).toFixed(2), w > h ? "（横图，需要旋转）" : "（竖图，直接显示）");
+        
+        if (w > h) {
+          console.log("🔄 开始旋转横图...");
+          
+          // 横图需要旋转成竖图
+          const canvas = document.createElement("canvas");
+          canvas.width = h;  // 旋转后宽度是原高度
+          canvas.height = w; // 旋转后高度是原宽度
+          const ctx = canvas.getContext("2d");
+          
+          console.log("🎨 Canvas尺寸：", canvas.width, "x", canvas.height);
+          
+          // 移动到画布中心
+          ctx.translate(h / 2, w / 2);
+          // 顺时针旋转90度
+          ctx.rotate(Math.PI / 2);
+          // 绘制图片
+          ctx.drawImage(image, -w / 2, -h / 2, w, h);
+          
+          // 转换为 data URL
+          const rotatedImageUrl = canvas.toDataURL("image/jpeg", 0.95);
+          console.log("✅ 横图旋转完成！");
+          resolve(rotatedImageUrl);
+        } else {
+          console.log("📱 竖图直接显示，无需处理");
+          // 竖图直接使用原图
+          resolve(imageUrl);
+        }
+      } catch (error) {
+        console.error("❌ 图片处理出错：", error);
+        // 出错时使用原图
+        resolve(imageUrl);
+      }
+    };
+    
+    image.onerror = (error) => {
+      console.error("❌ 图片加载失败：", error);
+      console.log("📷 使用原图URL");
+      resolve(imageUrl); // 失败时使用原图
+    };
+    
+    console.log("📥 设置图片源并开始加载...");
+    image.src = getProxiedImageUrl(imageUrl);
+  });
+}; 

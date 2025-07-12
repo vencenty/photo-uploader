@@ -1,6 +1,6 @@
 // API服务配置
-// const API_BASE_URL = 'http://localhost:8787';
-const API_BASE_URL = 'https://photo-kits-server.vencenty.cc';
+// 本地开发时使用代理路径，生产环境使用完整URL
+const API_BASE_URL = import.meta.env.DEV ? '' : 'https://photo-kits-server.vencenty.cc';
 
 // 导入错误处理工具
 import { 

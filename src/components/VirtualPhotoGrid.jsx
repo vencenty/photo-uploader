@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { Button, Tag, Image, Typography } from 'antd';
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { getProxiedImageUrl } from '../utils/imageUtils';
+import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
 
 const { Text } = Typography;
@@ -50,44 +50,65 @@ const PhotoItem = React.memo(({
   // 获取相纸尺寸比例
   const aspectRatio = getAspectRatioByName(size);
   
-  // 判断是否为横图（需要旋转）
-  const isHorizontal = photo.width > photo.height;
-  
   // 判断是否为留白类型
   const isWhiteBorder = size.includes('留白');
+  
+  // 添加状态来管理处理后的图片URL
+  const [processedImageUrl, setProcessedImageUrl] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // 处理图片旋转
+  useEffect(() => {
+    const processImage = async () => {
+      if (!photo.url) return;
+      
+      setIsProcessing(true);
+      try {
+        const rotatedUrl = await processImageRotation(photo.url);
+        setProcessedImageUrl(rotatedUrl);
+      } catch (error) {
+        console.error('图片处理失败：', error);
+        setProcessedImageUrl(photo.url); // 使用原图
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+    
+    processImage();
+  }, [photo.url]);
   
   // 计算预览框的实际尺寸
   const imageHeight = Math.floor(itemHeight * 0.8);
   const btnHeight = itemHeight - imageHeight;
   
-  // 根据相纸比例调整预览框尺寸
-  const previewWidth = itemWidth - 16; // 减去padding
-  const previewHeight = imageHeight;
+  // 根据相纸比例计算固定的显示尺寸
+  const maxPreviewWidth = itemWidth - 32; // 减去padding
+  const maxPreviewHeight = imageHeight - 32; // 减去padding
   
-  // 计算实际显示尺寸
-  let displayWidth, displayHeight;
-  if (previewWidth / previewHeight > aspectRatio) {
+  // 根据相纸宽高比计算实际显示尺寸（保持相纸真实比例）
+  let previewWidth, previewHeight;
+  if (maxPreviewWidth / maxPreviewHeight > aspectRatio) {
     // 容器更宽，以高度为准
-    displayHeight = previewHeight - 16; // 减去一些边距
-    displayWidth = displayHeight * aspectRatio;
+    previewHeight = maxPreviewHeight;
+    previewWidth = previewHeight * aspectRatio;
   } else {
     // 容器更高，以宽度为准
-    displayWidth = previewWidth - 16; // 减去一些边距
-    displayHeight = displayWidth / aspectRatio;
+    previewWidth = maxPreviewWidth;
+    previewHeight = previewWidth / aspectRatio;
   }
   
-  // 图片样式
+  // 图片样式 - 使用固定尺寸
   const imageStyle = {
-    width: displayWidth,
-    height: displayHeight,
+    width: previewWidth,
+    height: previewHeight,
     objectFit: isWhiteBorder ? 'contain' : 'cover',
     cursor: showPreview ? 'pointer' : 'default',
-    transform: isHorizontal && !isWhiteBorder ? 'rotate(90deg)' : 'none',
-    transformOrigin: 'center',
     borderRadius: isWhiteBorder ? '4px' : '0px',
+    // 留白类型需要白色背景和边框来模拟相纸效果
     background: isWhiteBorder ? '#fff' : 'transparent',
-    padding: isWhiteBorder ? '4px' : '0px',
+    padding: isWhiteBorder ? '6px' : '0px',
     border: isWhiteBorder ? '1px solid #e6e6e6' : 'none',
+    boxShadow: isWhiteBorder ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
   };
   
   return (
@@ -108,24 +129,42 @@ const PhotoItem = React.memo(({
         <div style={{
           width: '100%',
           height: imageHeight,
-          background: '#fafafa',
+          background: isWhiteBorder ? '#f8f9fa' : '#fafafa',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden',
+          padding: '16px 8px 8px 8px', // 顶部16px，其他方向8px，增加呼吸感
+          boxSizing: 'border-box',
         }}>
-          <Image
-            src={getProxiedImageUrl(photo.url)}
-            alt={photo.name}
-            style={imageStyle}
-            preview={showPreview ? false : {
-              src: getProxiedImageUrl(photo.serverUrl || photo.url),
-              mask: <div style={{ fontSize: 12, background: 'rgba(0,0,0,0.5)', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>预览</div>
-            }}
-            onClick={showPreview ? () => onPreview(photo) : undefined}
-            placeholder={<div style={{ width: displayWidth, height: displayHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
-          />
+          {isProcessing ? (
+            <div style={{ 
+              width: previewWidth, 
+              height: previewHeight, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              color: '#999', 
+              fontSize: 12,
+              background: '#f5f5f5',
+              borderRadius: '4px'
+            }}>
+              处理中...
+            </div>
+          ) : (
+            <Image
+              src={processedImageUrl || getProxiedImageUrl(photo.url)}
+              alt={photo.name}
+              style={imageStyle}
+              preview={showPreview ? false : {
+                src: getProxiedImageUrl(photo.serverUrl || photo.url),
+                mask: <div style={{ fontSize: 12, background: 'rgba(0,0,0,0.5)', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>预览</div>
+              }}
+              onClick={showPreview ? () => onPreview(photo) : undefined}
+              placeholder={<div style={{ width: previewWidth, height: previewHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
+            />
+          )}
           {/* 状态标签 */}
           <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {showPreview && (
