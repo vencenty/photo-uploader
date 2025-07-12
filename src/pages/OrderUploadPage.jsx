@@ -48,7 +48,7 @@ function OrderUploadPage() {
   const [orderInfo, setOrderInfo] = useState({
     order_sn: orderSnFromQuery,
     receiver: '',
-    remark: ''
+    remark: '' // 备注字段不显示，但提交时发送空字符串
   });
 
   // 选中的尺寸状态
@@ -141,7 +141,8 @@ function OrderUploadPage() {
           if (response.data) {
             // 根据API返回的数据结构提取所需信息
             formData.receiver = response.data.receiver || '';
-            formData.remark = response.data.remark || '';
+            // 删除备注字段显示，但保持空字符串用于提交
+            formData.remark = '';
 
             // 如果有照片数据，设置选中的尺寸和照片
             if (response.data.photos && Array.isArray(response.data.photos)) {
@@ -203,7 +204,9 @@ function OrderUploadPage() {
   const handleValuesChange = (changedValues, allValues) => {
     setOrderInfo(prev => ({
       ...prev,
-      ...changedValues
+      ...changedValues,
+      // 确保 remark 字段始终为空字符串
+      remark: ''
     }));
   };
 
@@ -511,20 +514,28 @@ function OrderUploadPage() {
               <Col span={isMobile ? 24 : 12}>
                 <Form.Item
                   name="receiver"
-                  label="收货人"
+                  label={
+                    <span>
+                      收货人
+                      <span style={{ color: '#ff4d4f', marginLeft: '4px' }}>*</span>
+                      <span style={{ color: '#ff4d4f', fontSize: '12px', fontWeight: 'normal' }}>
+                        （必填）
+                      </span>
+                    </span>
+                  }
                   rules={[{ required: true, message: '请输入收货人' }]}
                 >
-                  <Input placeholder="请输入收货人" />
+                  <Input 
+                    placeholder="请输入收货人（必填）"
+                    style={{
+                      borderColor: !orderInfo.receiver && totalPhotos > 0 ? '#ff4d4f' : undefined
+                    }}
+                  />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item
-              name="remark"
-              label="备注"
-            >
-              <TextArea rows={isMobile ? 3 : 4} placeholder="请输入备注信息" />
-            </Form.Item>
+            {/* 删除备注字段，但保持在orderInfo中以便提交时发送空字符串 */}
           </Form>
         </Card>
 
@@ -599,40 +610,67 @@ function OrderUploadPage() {
               suffix="张"
             />
 
-            <Tooltip title={
-              calcTotalUploading() > 0
-                ? "有照片正在上传中，请等待上传完成"
-                : totalPhotos === 0
-                  ? "请至少上传一张照片"
-                  : !orderInfo.order_sn
-                    ? "请输入订单号"
-                    : !orderInfo.receiver
-                      ? "请输入收货人"
-                      : selectedSizes.length === 0
-                        ? "请至少选择一种尺寸"
-                        : ""
-            }>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSubmit}
-                size={isMobile ? "middle" : "large"}
-                loading={calcTotalUploading() > 0 || loading}
-                disabled={!orderInfo.order_sn || !orderInfo.receiver || calcTotalUploading() > 0 || loading}
-                block={isMobile}
-                // 添加移动端兼容性
-                style={{ 
-                  minHeight: isMobile ? '44px' : 'auto',
-                  touchAction: 'manipulation',
-                  WebkitTouchCallout: 'none',
-                  WebkitUserSelect: 'none'
-                }}
-                // 防止双击
-                onDoubleClick={(e) => e.preventDefault()}
-              >
-                {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : loading ? "提交中..." : "提交订单"}
-              </Button>
-            </Tooltip>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: isMobile ? 'center' : 'flex-end',
+              gap: '8px'
+            }}>
+              {/* 必填项提示 */}
+              {totalPhotos > 0 && (!orderInfo.order_sn || !orderInfo.receiver) && (
+                <div style={{
+                  color: '#ff4d4f',
+                  fontSize: isMobile ? '12px' : '13px',
+                  textAlign: isMobile ? 'center' : 'right',
+                  background: '#fff2f0',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ffccc7'
+                }}>
+                  {!orderInfo.order_sn && !orderInfo.receiver 
+                    ? '请填写订单号和收货人信息'
+                    : !orderInfo.order_sn 
+                      ? '请填写订单号'
+                      : '请填写收货人信息'
+                  }
+                </div>
+              )}
+
+              <Tooltip title={
+                calcTotalUploading() > 0
+                  ? "有照片正在上传中，请等待上传完成"
+                  : totalPhotos === 0
+                    ? "请先上传照片"
+                    : !orderInfo.order_sn
+                      ? "请输入订单号"
+                      : !orderInfo.receiver
+                        ? "请输入收货人（必填项）"
+                        : selectedSizes.length === 0
+                          ? "请至少选择一种尺寸"
+                          : "点击提交订单"
+              }>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={handleSubmit}
+                  size={isMobile ? "middle" : "large"}
+                  loading={calcTotalUploading() > 0 || loading}
+                  disabled={!orderInfo.order_sn || !orderInfo.receiver || calcTotalUploading() > 0 || loading}
+                  block={isMobile}
+                  // 添加移动端兼容性
+                  style={{ 
+                    minHeight: isMobile ? '44px' : 'auto',
+                    touchAction: 'manipulation',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none'
+                  }}
+                  // 防止双击
+                  onDoubleClick={(e) => e.preventDefault()}
+                >
+                  {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : loading ? "提交中..." : "提交订单"}
+                </Button>
+              </Tooltip>
+            </div>
           </div>
         </Card>
 

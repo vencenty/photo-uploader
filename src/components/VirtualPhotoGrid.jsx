@@ -57,10 +57,16 @@ const PhotoItem = React.memo(({
   const [processedImageUrl, setProcessedImageUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // 处理图片旋转
+  // 处理图片旋转 - 添加更稳定的依赖项和重复处理检查
   useEffect(() => {
     const processImage = async () => {
       if (!photo.url) return;
+      
+      // 如果已经有处理结果且URL没变，跳过重新处理
+      if (processedImageUrl && processedImageUrl !== photo.url) {
+        console.log("⏭️ 跳过重复处理，已有结果：", photo.url);
+        return;
+      }
       
       setIsProcessing(true);
       try {
@@ -75,7 +81,7 @@ const PhotoItem = React.memo(({
     };
     
     processImage();
-  }, [photo.url]);
+  }, [photo.url, photo.id]); // 添加photo.id作为稳定的标识符
   
   // 计算预览框的实际尺寸 - 重新设计高度分配
   const btnHeight = 60; // 固定按钮区域高度为60px
@@ -223,6 +229,20 @@ const PhotoItem = React.memo(({
         </div>
       </div>
     </div>
+  );
+}, (prevProps, nextProps) => {
+  // 自定义比较函数 - 只有关键props变化时才重新渲染
+  return (
+    prevProps.photo.id === nextProps.photo.id &&
+    prevProps.photo.url === nextProps.photo.url &&
+    prevProps.photo.name === nextProps.photo.name &&
+    prevProps.photo.compressed === nextProps.photo.compressed &&
+    prevProps.photo.cropped === nextProps.photo.cropped &&
+    prevProps.showPreview === nextProps.showPreview &&
+    prevProps.previewType === nextProps.previewType &&
+    prevProps.itemWidth === nextProps.itemWidth &&
+    prevProps.itemHeight === nextProps.itemHeight &&
+    prevProps.size === nextProps.size
   );
 });
 

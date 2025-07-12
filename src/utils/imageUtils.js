@@ -111,12 +111,34 @@ export const preloadImages = async (imageUrls) => {
   console.log('图片预加载完成');
 }; 
 
+// 图片处理结果缓存
+const imageProcessCache = new Map();
+const MAX_CACHE_SIZE = 100; // 最大缓存100张图片
+
+// 清理缓存的函数
+const cleanupCache = () => {
+  if (imageProcessCache.size > MAX_CACHE_SIZE) {
+    const entriesToDelete = imageProcessCache.size - MAX_CACHE_SIZE;
+    const iterator = imageProcessCache.keys();
+    for (let i = 0; i < entriesToDelete; i++) {
+      const key = iterator.next().value;
+      imageProcessCache.delete(key);
+    }
+    console.log(`🧹 清理了 ${entriesToDelete} 个图片缓存，当前缓存数量: ${imageProcessCache.size}`);
+  }
+};
+
 /**
- * 处理图片旋转 - 如果是横图则旋转90度
+ * 处理图片旋转 - 如果是横图则旋转90度（带缓存）
  * @param {string} imageUrl 图片URL
  * @returns {Promise<string>} 处理后的图片URL
  */
 export const processImageRotation = (imageUrl) => {
+  // 检查缓存
+  if (imageProcessCache.has(imageUrl)) {
+    console.log("🎯 使用缓存的图片处理结果：", imageUrl);
+    return Promise.resolve(imageProcessCache.get(imageUrl));
+  }
   return new Promise((resolve, reject) => {
     if (!imageUrl) {
       resolve(imageUrl);
@@ -162,15 +184,22 @@ export const processImageRotation = (imageUrl) => {
           // 转换为 data URL
           const rotatedImageUrl = canvas.toDataURL("image/jpeg", 0.95);
           console.log("✅ 横图旋转完成！");
+          // 缓存处理结果
+          imageProcessCache.set(imageUrl, rotatedImageUrl);
+          cleanupCache();
           resolve(rotatedImageUrl);
         } else {
           console.log("📱 竖图直接显示，无需处理");
-          // 竖图直接使用原图
+          // 竖图直接使用原图，也要缓存
+          imageProcessCache.set(imageUrl, imageUrl);
+          cleanupCache();
           resolve(imageUrl);
         }
       } catch (error) {
         console.error("❌ 图片处理出错：", error);
-        // 出错时使用原图
+        // 出错时使用原图，也要缓存避免重复处理
+        imageProcessCache.set(imageUrl, imageUrl);
+        cleanupCache();
         resolve(imageUrl);
       }
     };
@@ -178,7 +207,10 @@ export const processImageRotation = (imageUrl) => {
     image.onerror = (error) => {
       console.error("❌ 图片加载失败：", error);
       console.log("📷 使用原图URL");
-      resolve(imageUrl); // 失败时使用原图
+      // 失败时使用原图，也要缓存避免重复尝试
+      imageProcessCache.set(imageUrl, imageUrl);
+      cleanupCache();
+      resolve(imageUrl);
     };
     
     console.log("📥 设置图片源并开始加载...");
