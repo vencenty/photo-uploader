@@ -30,7 +30,7 @@ function useGridLayout(isMobile, photoCount) {
   let columnCount = Math.max(1, Math.min(maxColumns, Math.floor(containerWidth / minItemWidth)));
   if (photoCount < columnCount) columnCount = photoCount || 1;
   const itemWidth = Math.floor(containerWidth / columnCount);
-  const itemHeight = Math.floor(itemWidth * 1.15);
+  const itemHeight = Math.floor(itemWidth * 1.4); // 从1.15增加到1.4，给整个卡片更多高度
   return { containerRef, containerWidth, columnCount, itemWidth, itemHeight };
 }
 
@@ -77,9 +77,10 @@ const PhotoItem = React.memo(({
     processImage();
   }, [photo.url]);
   
-  // 计算预览框的实际尺寸
-  const imageHeight = Math.floor(itemHeight * 0.8);
-  const btnHeight = itemHeight - imageHeight;
+  // 计算预览框的实际尺寸 - 重新设计高度分配
+  const btnHeight = 60; // 固定按钮区域高度为60px
+  const textHeight = 40; // 固定文件名区域高度为40px  
+  const imageHeight = itemHeight - btnHeight - textHeight; // 剩余空间全部给图片区域
   
   // 根据相纸比例计算固定的显示尺寸
   const maxPreviewWidth = itemWidth - 32; // 减去padding
@@ -112,7 +113,7 @@ const PhotoItem = React.memo(({
   };
   
   return (
-    <div style={{ ...style, padding: 8, boxSizing: 'border-box' }}>
+    <div style={{ ...style, padding: 12, boxSizing: 'border-box' }}> {/* 从8px增加到12px，增加卡片间距 */}
       <div style={{
         width: '100%',
         height: '100%',
@@ -135,7 +136,7 @@ const PhotoItem = React.memo(({
           justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden',
-          padding: '16px 8px 8px 8px', // 顶部16px，其他方向8px，增加呼吸感
+          padding: '20px 12px 12px 12px', // 顶部20px，左右和底部12px，增加更多呼吸感
           boxSizing: 'border-box',
         }}>
           {isProcessing ? (
@@ -178,15 +179,32 @@ const PhotoItem = React.memo(({
             )}
           </div>
         </div>
-        {/* 文件名+大小 */}
-        <div style={{ width: '100%', padding: '4px 8px 0 8px', fontSize: 12, color: '#333', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={photo.name}>
-          {photo.name}
-        </div>
-        <div style={{ width: '100%', padding: '0 8px', fontSize: 10, color: '#999', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''}
+        {/* 文件名+大小区域 */}
+        <div style={{ 
+          width: '100%', 
+          height: textHeight, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'center', 
+          padding: '0 12px' 
+        }}>
+          <div style={{ fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={photo.name}>
+            {photo.name}
+          </div>
+          <div style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
+            {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''}
+          </div>
         </div>
         {/* 按钮区域 */}
-        <div style={{ width: '100%', height: btnHeight, display: 'flex', gap: 8, padding: '4px 8px', marginTop: 'auto' }}>
+        <div style={{ 
+          width: '100%', 
+          height: btnHeight, 
+          display: 'flex', 
+          gap: 10, 
+          padding: '8px 12px', 
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
           <Button
             type="text"
             icon={<ScissorOutlined style={{ fontSize: 14 }} />}
