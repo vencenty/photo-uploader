@@ -1,141 +1,99 @@
-// 基础Polyfills for 兼容性支持
-// Babel会按需引入core-js，这里只保留必要的polyfills
+// 现代浏览器兼容性 Polyfills
+// Babel + core-js 会自动处理 ES6+ 语法，这里只保留特殊需求的 polyfill
 import 'whatwg-fetch'
 
-// Object.assign polyfill (for IE)
-if (typeof Object.assign !== 'function') {
-  Object.assign = function(target) {
-    'use strict';
-    if (target == null) {
-      throw new TypeError('Cannot convert undefined or null to object');
-    }
+// 检测关键 API 支持情况
+const checkAPISupport = () => {
+  const missing = [];
+  
+  // 检查关键 Web API
+  if (typeof FormData === 'undefined') {
+    missing.push('FormData');
+    console.warn('⚠️ FormData 不支持，文件上传功能可能受影响');
+  }
+  
+  if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
+    missing.push('File API');
+    console.error('❌ 浏览器不支持 File API，文件上传功能无法正常工作');
+  }
+  
+  if (missing.length > 0) {
+    console.warn('🔧 检测到缺失的 API:', missing.join(', '));
+    console.warn('💡 建议使用更现代的浏览器以获得最佳体验');
+  } else {
+    console.log('✅ 浏览器兼容性检查通过');
+  }
+  
+  return missing;
+};
 
-    var to = Object(target);
-    for (var index = 1; index < arguments.length; index++) {
-      var nextSource = arguments[index];
-      if (nextSource != null) {
-        for (var nextKey in nextSource) {
-          if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-            to[nextKey] = nextSource[nextKey];
-          }
-        }
-      }
+// URL polyfill for older browsers
+if (typeof URL === 'undefined' && typeof webkitURL !== 'undefined') {
+  window.URL = window.webkitURL;
+  console.log('🔧 已应用 URL polyfill');
+}
+
+// IntersectionObserver polyfill for older browsers (图片懒加载关键)
+if (!('IntersectionObserver' in window)) {
+  console.warn('⚠️ IntersectionObserver 不支持，使用降级方案');
+  window.IntersectionObserver = class {
+    constructor(callback) {
+      this.callback = callback;
     }
-    return to;
+    observe(element) {
+      // 立即执行回调，模拟元素可见
+      setTimeout(() => {
+        this.callback([{ isIntersecting: true, target: element }]);
+      }, 100);
+    }
+    unobserve() {}
+    disconnect() {}
   };
 }
 
-// Array.prototype.includes polyfill
-if (!Array.prototype.includes) {
-  Array.prototype.includes = function(searchElement /*, fromIndex*/ ) {
-    'use strict';
-    var O = Object(this);
-    var len = parseInt(O.length) || 0;
-    if (len === 0) {
-      return false;
-    }
-    var n = parseInt(arguments[1]) || 0;
-    var k;
-    if (n >= 0) {
-      k = n;
-    } else {
-      k = len + n;
-      if (k < 0) {k = 0;}
-    }
-    for (;k < len; k++) {
-      if (O[k] === searchElement) {
-        return true;
-      }
-    }
-    return false;
+// requestAnimationFrame polyfill for smoother animations
+if (!window.requestAnimationFrame) {
+  console.log('🔧 已应用 requestAnimationFrame polyfill');
+  window.requestAnimationFrame = function(callback) {
+    return setTimeout(callback, 1000 / 60);
   };
 }
 
-// String.prototype.includes polyfill
-if (!String.prototype.includes) {
-  String.prototype.includes = function(search, start) {
-    'use strict';
-    if (typeof start !== 'number') {
-      start = 0;
-    }
-    
-    if (start + search.length > this.length) {
-      return false;
-    } else {
-      return this.indexOf(search, start) !== -1;
+if (!window.cancelAnimationFrame) {
+  window.cancelAnimationFrame = function(id) {
+    clearTimeout(id);
+  };
+}
+
+// Performance API polyfill
+if (!window.performance) {
+  console.log('🔧 已应用 Performance API polyfill');
+  window.performance = {
+    now: function() {
+      return Date.now();
+    },
+    timing: {
+      navigationStart: Date.now()
     }
   };
 }
 
-// Array.prototype.find polyfill
-if (!Array.prototype.find) {
-  Array.prototype.find = function(predicate) {
-    if (this == null) {
-      throw new TypeError('Array.prototype.find called on null or undefined');
-    }
-    if (typeof predicate !== 'function') {
-      throw new TypeError('predicate must be a function');
-    }
-    var list = Object(this);
-    var length = parseInt(list.length) || 0;
-    var thisArg = arguments[1];
-    var value;
-
-    for (var i = 0; i < length; i++) {
-      value = list[i];
-      if (predicate.call(thisArg, value, i, list)) {
-        return value;
-      }
-    }
-    return undefined;
+if (!window.performance.now) {
+  window.performance.now = function() {
+    return Date.now() - window.performance.timing.navigationStart;
   };
 }
 
-// Array.prototype.findIndex polyfill
-if (!Array.prototype.findIndex) {
-  Array.prototype.findIndex = function(predicate) {
-    if (this == null) {
-      throw new TypeError('Array.prototype.findIndex called on null or undefined');
-    }
-    if (typeof predicate !== 'function') {
-      throw new TypeError('predicate must be a function');
-    }
-    var list = Object(this);
-    var length = parseInt(list.length) || 0;
-    var thisArg = arguments[1];
-    var value;
-
-    for (var i = 0; i < length; i++) {
-      value = list[i];
-      if (predicate.call(thisArg, value, i, list)) {
-        return i;
-      }
-    }
-    return -1;
-  };
+// Touch events polyfill for desktop testing
+if (!('ontouchstart' in window) && !window.navigator.msMaxTouchPoints) {
+  // 在非触摸设备上模拟基本的触摸事件（主要用于开发测试）
+  window.Touch = window.Touch || function() {};
+  window.TouchList = window.TouchList || function() {};
 }
 
-// Promise.prototype.finally polyfill
-if (typeof Promise !== 'undefined' && !Promise.prototype.finally) {
-  Promise.prototype.finally = function(callback) {
-    var P = this.constructor || Promise;
-    return this.then(
-      function(value) {
-        return P.resolve(callback()).then(function() {
-          return value;
-        });
-      },
-      function(reason) {
-        return P.resolve(callback()).then(function() {
-          throw reason;
-        });
-      }
-    );
-  };
-}
-
-// Element.prototype.closest polyfill (for IE)
+// Element.closest polyfill for IE (如果真的需要支持IE的话)
 if (!Element.prototype.closest) {
+  console.log('🔧 已应用 Element.closest polyfill');
   Element.prototype.closest = function(selector) {
     var el = this;
     var matchesFn;
@@ -164,76 +122,17 @@ if (!Element.prototype.closest) {
   };
 }
 
-// FormData polyfill check
-if (typeof FormData === 'undefined') {
-  console.warn('FormData不支持，文件上传功能可能受影响');
-}
+// 执行兼容性检查
+const missingAPIs = checkAPISupport();
 
-// URL polyfill check
-if (typeof URL === 'undefined' && typeof webkitURL !== 'undefined') {
-  window.URL = window.webkitURL;
-}
+// 导出检查结果供其他模块使用
+export { missingAPIs };
 
-// Intersection Observer polyfill for older browsers
-if (!('IntersectionObserver' in window)) {
-  console.warn('IntersectionObserver不支持，图片懒加载功能可能受影响');
-  // 简单的降级方案
-  window.IntersectionObserver = class {
-    constructor(callback) {
-      this.callback = callback;
-    }
-    observe(element) {
-      // 立即执行回调，模拟元素可见
-      setTimeout(() => {
-        this.callback([{ isIntersecting: true, target: element }]);
-      }, 100);
-    }
-    unobserve() {}
-    disconnect() {}
-  };
-}
-
-// File API 兼容性检查
-if (!window.File || !window.FileReader || !window.FileList || !window.Blob) {
-  console.error('您的浏览器不支持File API，文件上传功能可能无法正常工作');
-}
-
-// requestAnimationFrame polyfill
-if (!window.requestAnimationFrame) {
-  window.requestAnimationFrame = function(callback) {
-    return setTimeout(callback, 1000 / 60);
-  };
-}
-
-if (!window.cancelAnimationFrame) {
-  window.cancelAnimationFrame = function(id) {
-    clearTimeout(id);
-  };
-}
-
-// Touch events polyfill for desktop testing
-if (!('ontouchstart' in window) && !window.navigator.msMaxTouchPoints) {
-  // 在非触摸设备上模拟基本的触摸事件
-  window.Touch = window.Touch || function() {};
-  window.TouchList = window.TouchList || function() {};
-}
-
-// Performance API polyfill
-if (!window.performance) {
-  window.performance = {
-    now: function() {
-      return Date.now();
-    },
-    timing: {
-      navigationStart: Date.now()
-    }
-  };
-}
-
-if (!window.performance.now) {
-  window.performance.now = function() {
-    return Date.now() - window.performance.timing.navigationStart;
-  };
+// 在开发环境下显示 polyfill 加载信息
+if (process.env.NODE_ENV === 'development') {
+  console.log('🚀 Polyfills 加载完成');
+  console.log('📦 Core-js 通过 Babel 按需加载');
+  console.log('🌐 支持的浏览器: Chrome 58+, Firefox 57+, Safari 11+, Edge 16+');
 }
 
 
