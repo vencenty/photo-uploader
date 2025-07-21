@@ -3,7 +3,15 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // 强制使用 Babel 进行转译，确保兼容性
+      babel: {
+        configFile: true, // 使用 babel.config.js
+        babelrc: false,
+      },
+    })
+  ],
   build: {
     target: 'es2015', // 使用单一目标，避免构建冲突
     modulePreload: { polyfill: false },

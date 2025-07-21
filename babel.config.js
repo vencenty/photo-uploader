@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   presets: [
     [
       '@babel/preset-env',
@@ -16,10 +16,13 @@ module.exports = {
             'not ie <= 11'
           ]
         },
-        useBuiltIns: 'entry',
+        useBuiltIns: 'usage', // 按需引入polyfills，减少包体积
         corejs: 3,
         modules: false,
-        debug: false
+        debug: false,
+        // 添加更多兼容性选项
+        shippedProposals: true,
+        bugfixes: true
       }
     ],
     ['@babel/preset-react', { runtime: 'automatic' }]
@@ -35,4 +38,4 @@ module.exports = {
       plugins: ['react-refresh/babel']
     }
   }
-}; 
+} 

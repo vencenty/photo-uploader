@@ -91,7 +91,6 @@ export const getOrderInfo = withErrorBoundary(async (orderSn) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Country': 'CN',
     },
     body: safeJsonStringify({
       order_sn: orderSn

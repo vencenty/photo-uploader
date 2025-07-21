@@ -1,6 +1,5 @@
 // 基础Polyfills for 兼容性支持
-// 引入核心polyfills
-import 'core-js/stable'
+// Babel会按需引入core-js，这里只保留必要的polyfills
 import 'whatwg-fetch'
 
 // Object.assign polyfill (for IE)

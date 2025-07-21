@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
 import { initMobileOptimization } from './utils/mobileOptimization'
-// 导入polyfills以提供兼容性支持
+// 导入polyfills以提供兼容性支持（现在按需引入）
 import './utils/polyfills.js'
 import { setupGlobalErrorHandler, detectBrowserFeatures } from './utils/errorHandler.js'
 import { getBrowserInfo, applyBrowserSpecificFixes } from './utils/browserDetect.js'
