@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   Form, Input, Button, Card, Typography, message,
   Checkbox, Row, Col, Space,
-  Modal, Spin, Statistic, Tooltip
+  Modal, Spin, Statistic, Tooltip, notification
 } from 'antd';
 import {
   SaveOutlined, InfoCircleOutlined, ScissorOutlined
@@ -24,6 +24,8 @@ const sizeOptions = getSizeOptions();
 function OrderUploadPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  
+
   const queryParams = new URLSearchParams(location.search);
   const orderSnFromQuery = queryParams.get('order_sn') || '';
 
@@ -416,7 +418,7 @@ function OrderUploadPage() {
         save_type: 'auto' // 标记这是自动保存请求
       };
 
-      console.log('自动保存订单数据:', submitData);
+
 
       const response = await submitOrder(submitData);
 
@@ -424,12 +426,67 @@ function OrderUploadPage() {
         setAutoSaveStatus('success');
         lastAutoSaveTimeRef.current = Date.now();
         
-        // 显示成功提示（不干扰用户）
-        message.success({
-          content: '订单已自动保存',
-          duration: 2,
-          style: { marginTop: '10px' }
-        });
+        // 在屏幕右下角显示自动保存成功提示
+        
+        // 创建自定义右下角通知作为备用方案
+        const autoSaveDiv = document.createElement('div');
+        autoSaveDiv.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
+          border: 1px solid #52c41a;
+          border-radius: 12px;
+          padding: 16px 20px;
+          box-shadow: 0 8px 24px rgba(82, 196, 26, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
+          z-index: 10000;
+          max-width: 320px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          animation: slideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+          cursor: pointer;
+        `;
+        autoSaveDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">💾</span>
+            <div>
+              <div style="color: #389e0d; font-weight: 600; font-size: 15px; margin-bottom: 2px;">
+                自动保存成功
+              </div>
+              <div style="color: #595959; font-size: 13px;">
+                订单数据已保存到服务器
+              </div>
+            </div>
+            <span style="color: #52c41a; font-weight: bold; font-size: 16px;">✓</span>
+          </div>
+        `;
+        
+        // 点击关闭
+        autoSaveDiv.onclick = () => {
+          if (autoSaveDiv.parentNode) {
+            autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+              if (autoSaveDiv.parentNode) {
+                autoSaveDiv.parentNode.removeChild(autoSaveDiv);
+              }
+            }, 300);
+          }
+        };
+        
+        document.body.appendChild(autoSaveDiv);
+        
+        // 4秒后自动移除
+        setTimeout(() => {
+          if (autoSaveDiv.parentNode) {
+            autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+              if (autoSaveDiv.parentNode) {
+                autoSaveDiv.parentNode.removeChild(autoSaveDiv);
+              }
+            }, 300);
+          }
+        }, 4000);
+        
+
         
         // 3秒后恢复状态
         setTimeout(() => setAutoSaveStatus('idle'), 3000);
@@ -463,7 +520,7 @@ function OrderUploadPage() {
     
     autoSaveTimerRef.current = setInterval(() => {
       performAutoSave();
-    }, 30000); // 30秒间隔
+    }, 3000); // 30秒间隔
   }, [performAutoSave]);
 
   // 停止自动保存定时器
@@ -761,6 +818,8 @@ function OrderUploadPage() {
 
         {/* 底部统计和提交 */}
         <Card style={{ marginBottom: 16 }}>
+
+
           {/* 自动保存状态显示 */}
           {(autoSaveStatus !== 'idle' || lastAutoSaveTimeRef.current > 0) && (
             <div style={{ 
