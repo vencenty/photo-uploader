@@ -79,31 +79,43 @@ const PhotoItem = React.memo(({
     setIsQuantityModalVisible(true);
   };
   
-  // 处理图片旋转 - 添加更稳定的依赖项和重复处理检查
+  // 处理图片旋转 - 使用全局缓存优化性能
   useEffect(() => {
     const processImage = async () => {
       if (!photo.url) return;
       
-      // 如果已经有处理结果且URL没变，跳过重新处理
-      if (processedImageUrl && processedImageUrl !== photo.url) {
-        console.log("⏭️ 跳过重复处理，已有结果：", photo.url);
+      // 检查全局缓存
+      if (imageProcessCache.has(photo.url)) {
+        const cachedUrl = imageProcessCache.get(photo.url);
+        if (cachedUrl !== processedImageUrl) {
+          setProcessedImageUrl(cachedUrl);
+        }
+        return;
+      }
+      
+      // 如果已经有处理结果，跳过重新处理
+      if (processedImageUrl) {
         return;
       }
       
       setIsProcessing(true);
       try {
         const rotatedUrl = await processImageRotation(photo.url);
+        // 存储到全局缓存
+        imageProcessCache.set(photo.url, rotatedUrl);
         setProcessedImageUrl(rotatedUrl);
       } catch (error) {
         console.error('图片处理失败：', error);
-        setProcessedImageUrl(photo.url); // 使用原图
+        const fallbackUrl = photo.url;
+        imageProcessCache.set(photo.url, fallbackUrl);
+        setProcessedImageUrl(fallbackUrl);
       } finally {
         setIsProcessing(false);
       }
     };
     
     processImage();
-  }, [photo.url, photo.id]); // 添加photo.id作为稳定的标识符
+  }, [photo.url]); // 只依赖URL变化
   
   // 计算预览框的实际尺寸 - 重新设计高度分配
   const btnHeight = 50; // 固定按钮区域高度为50px（减少了10px）
@@ -440,6 +452,9 @@ const PhotoItem = React.memo(({
     prevProps.size === nextProps.size
   );
 });
+
+// 全局图片处理缓存，避免重复处理
+const imageProcessCache = new Map();
 
 const VirtualPhotoGrid = memo(({
   photos = [],

@@ -59,8 +59,7 @@ function OrderUploadPage() {
   // 每个尺寸对应的照片状态
   const [sizePhotos, setSizePhotos] = useState({});
 
-  // 总照片数
-  const [totalPhotos, setTotalPhotos] = useState(0);
+
   
   // 自动保存相关状态
   const [autoSaveStatus, setAutoSaveStatus] = useState('idle'); // idle, saving, success, error
@@ -81,7 +80,6 @@ function OrderUploadPage() {
 
   // 计算总上传数
   const calcTotalUploading = useCallback(() => {
-    console.log("计算总上传数:", uploadingPhotosBySize);
     return Object.values(uploadingPhotosBySize).reduce((total, count) => total + count, 0);
   }, [uploadingPhotosBySize]);
 
@@ -113,8 +111,8 @@ function OrderUploadPage() {
     return unadjustedInfo;
   }, [selectedSizes, sizePhotos]);
 
-  // 计算总照片数（考虑每张照片的数量）
-  useEffect(() => {
+  // 使用useMemo优化总照片数计算，减少不必要的重新计算
+  const totalPhotos = useMemo(() => {
     let total = 0;
     Object.entries(sizePhotos).forEach(([size, photos]) => {
       // 只统计选中尺寸的照片
@@ -123,7 +121,7 @@ function OrderUploadPage() {
         total += photos.reduce((sum, photo) => sum + (photo.quantity || 1), 0);
       }
     });
-    setTotalPhotos(total);
+    return total;
   }, [sizePhotos, selectedSizes]);
 
   // 查询订单信息（从API获取）
@@ -273,18 +271,16 @@ function OrderUploadPage() {
         [size]: newCount
       };
 
-      console.log(`上传计数更新 [${size}]: ${currentCount} -> ${newCount}`, result);
+
 
       // 无论计数如何变化，都立即触发检查
       // 使用较短的超时确保状态及时更新
       setTimeout(() => {
         // 检查是否所有上传都已完成
         const allFinished = Object.values(result).every(count => count === 0);
-        console.log('所有上传是否完成:', allFinished);
-
+        
         // 计算总上传数
         const total = Object.values(result).reduce((sum, count) => sum + count, 0);
-        console.log('当前总上传数:', total);
       }, 50);
 
       return result;
@@ -366,6 +362,66 @@ function OrderUploadPage() {
     }
   };
 
+  // 显示自动保存通知
+  const showAutoSaveNotification = useCallback(() => {
+    const autoSaveDiv = document.createElement('div');
+    autoSaveDiv.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
+      border: 1px solid #52c41a;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 8px 24px rgba(82, 196, 26, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
+      z-index: 10000;
+      max-width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      animation: slideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      cursor: pointer;
+    `;
+    autoSaveDiv.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">💾</span>
+        <div>
+          <div style="color: #389e0d; font-weight: 600; font-size: 15px; margin-bottom: 2px;">
+            自动保存成功
+          </div>
+          <div style="color: #595959; font-size: 13px;">
+            订单数据已保存到服务器
+          </div>
+        </div>
+        <span style="color: #52c41a; font-weight: bold; font-size: 16px;">✓</span>
+      </div>
+    `;
+    
+    // 点击关闭
+    autoSaveDiv.onclick = () => {
+      if (autoSaveDiv.parentNode) {
+        autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+          if (autoSaveDiv.parentNode) {
+            autoSaveDiv.parentNode.removeChild(autoSaveDiv);
+          }
+        }, 300);
+      }
+    };
+    
+    document.body.appendChild(autoSaveDiv);
+    
+    // 4秒后自动移除
+    setTimeout(() => {
+      if (autoSaveDiv.parentNode) {
+        autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+          if (autoSaveDiv.parentNode) {
+            autoSaveDiv.parentNode.removeChild(autoSaveDiv);
+          }
+        }, 300);
+      }
+    }, 4000);
+  }, []);
+
   // 自动保存函数
   const performAutoSave = useCallback(async () => {
     // 防止重复自动保存
@@ -428,67 +484,10 @@ function OrderUploadPage() {
         
         // 在屏幕右下角显示自动保存成功提示
         
-        // 创建自定义右下角通知作为备用方案
-        const autoSaveDiv = document.createElement('div');
-        autoSaveDiv.style.cssText = `
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
-          border: 1px solid #52c41a;
-          border-radius: 12px;
-          padding: 16px 20px;
-          box-shadow: 0 8px 24px rgba(82, 196, 26, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
-          z-index: 10000;
-          max-width: 320px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          animation: slideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          cursor: pointer;
-        `;
-        autoSaveDiv.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 20px;">💾</span>
-            <div>
-              <div style="color: #389e0d; font-weight: 600; font-size: 15px; margin-bottom: 2px;">
-                自动保存成功
-              </div>
-              <div style="color: #595959; font-size: 13px;">
-                订单数据已保存到服务器
-              </div>
-            </div>
-            <span style="color: #52c41a; font-weight: bold; font-size: 16px;">✓</span>
-          </div>
-        `;
+        // 显示自动保存成功通知
+        showAutoSaveNotification();
         
-        // 点击关闭
-        autoSaveDiv.onclick = () => {
-          if (autoSaveDiv.parentNode) {
-            autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => {
-              if (autoSaveDiv.parentNode) {
-                autoSaveDiv.parentNode.removeChild(autoSaveDiv);
-              }
-            }, 300);
-          }
-        };
-        
-        document.body.appendChild(autoSaveDiv);
-        
-        // 4秒后自动移除
-        setTimeout(() => {
-          if (autoSaveDiv.parentNode) {
-            autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => {
-              if (autoSaveDiv.parentNode) {
-                autoSaveDiv.parentNode.removeChild(autoSaveDiv);
-              }
-            }, 300);
-          }
-        }, 4000);
-        
-
-        
-        // 3秒后恢复状态
+        // 延迟更新状态，避免频繁重新渲染
         setTimeout(() => setAutoSaveStatus('idle'), 3000);
       } else {
         throw new Error(response.msg || '自动保存失败');
@@ -509,7 +508,8 @@ function OrderUploadPage() {
     totalPhotos,
     sizePhotos,
     selectedSizes,
-    calcTotalUploading
+    calcTotalUploading,
+    showAutoSaveNotification
   ]);
 
   // 启动/重置自动保存定时器
