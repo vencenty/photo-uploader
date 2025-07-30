@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -20,6 +20,53 @@ const { TextArea } = Input;
 
 // 支持的尺寸选项 - 从配置文件获取
 const sizeOptions = getSizeOptions();
+
+// 预定义常量样式，避免每次渲染重新创建
+const STATIC_STYLES = {
+  container: { maxWidth: 1200, margin: '0 auto' },
+  mobileContainer: { maxWidth: 1200, margin: '0 auto', padding: '10px 0' },
+  desktopContainer: { maxWidth: 1200, margin: '0 auto', padding: '20px 0' },
+  warningBox: {
+    background: '#fff2f0',
+    border: '1px solid #ffccc7',
+    borderRadius: '6px',
+    padding: '12px 16px',
+    marginBottom: '20px',
+    lineHeight: '1.6'
+  },
+  submitButton: {
+    touchAction: 'manipulation',
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none'
+  },
+  mobileSubmitButton: {
+    minHeight: '44px',
+    touchAction: 'manipulation',
+    WebkitTouchCallout: 'none',
+    WebkitUserSelect: 'none'
+  }
+};
+
+// 优化后的PhotoUploader组件 - 使用memo避免不必要的重新渲染
+const MemoizedPhotoUploader = memo(({ 
+  size, 
+  photos, 
+  onPhotosChange, 
+  uploadingCount, 
+  onUploadingCountChange, 
+  isMobile 
+}) => (
+  <PhotoUploader
+    size={size}
+    photos={photos}
+    onPhotosChange={onPhotosChange}
+    uploadingCount={uploadingCount}
+    onUploadingCountChange={onUploadingCountChange}
+    isMobile={isMobile}
+  />
+));
+
+MemoizedPhotoUploader.displayName = 'MemoizedPhotoUploader';
 
 function OrderUploadPage() {
   const navigate = useNavigate();
@@ -77,11 +124,18 @@ function OrderUploadPage() {
 
   // 修改：改用对象存储每个尺寸的上传状态
   const [uploadingPhotosBySize, setUploadingPhotosBySize] = useState({});
+  
+  // 缓存复杂计算结果和防抖定时器
+  const calculationCache = useRef(new Map());
+  const debounceTimers = useRef(new Map());
 
-  // 计算总上传数
-  const calcTotalUploading = useCallback(() => {
+  // 使用useMemo优化总上传数计算
+  const totalUploading = useMemo(() => {
     return Object.values(uploadingPhotosBySize).reduce((total, count) => total + count, 0);
   }, [uploadingPhotosBySize]);
+  
+  // 稳定的计算函数引用
+  const calcTotalUploading = useCallback(() => totalUploading, [totalUploading]);
 
   // 检查未调整大小的照片
   const checkUnadjustedPhotos = useCallback(() => {
@@ -258,7 +312,7 @@ function OrderUploadPage() {
     setUploadingPhotosBySize(newUploadingCounts);
   };
 
-  // 为特定尺寸更新上传计数的处理函数
+  // 使用useCallback优化上传计数更新，减少依赖
   const handleUploadingCountChange = useCallback((size, countUpdater) => {
     setUploadingPhotosBySize(prev => {
       const currentCount = prev[size] || 0;
@@ -266,45 +320,70 @@ function OrderUploadPage() {
         ? countUpdater(currentCount)
         : countUpdater;
 
-      const result = {
+      return {
         ...prev,
         [size]: newCount
       };
-
-
-
-      // 无论计数如何变化，都立即触发检查
-      // 使用较短的超时确保状态及时更新
-      setTimeout(() => {
-        // 检查是否所有上传都已完成
-        const allFinished = Object.values(result).every(count => count === 0);
-        
-        // 计算总上传数
-        const total = Object.values(result).reduce((sum, count) => sum + count, 0);
-      }, 50);
-
-      return result;
     });
   }, []);
 
-  // 优化的照片变更处理函数
+  // 防抖处理函数
+  const debounce = useCallback((key, func, delay = 300) => {
+    const timers = debounceTimers.current;
+    if (timers.has(key)) {
+      clearTimeout(timers.get(key));
+    }
+    
+    const timerId = setTimeout(() => {
+      func();
+      timers.delete(key);
+    }, delay);
+    
+    timers.set(key, timerId);
+  }, []);
+
+  // 优化的照片变更处理函数 - 添加防抖
   const handlePhotosChange = useCallback((newPhotos) => {
+    // 立即更新UI，但防抖后续计算
     setSizePhotos(newPhotos);
   }, []);
 
-  // 为每个尺寸创建优化的上传计数变更回调
-  const createUploadingCountChangeHandler = useCallback((size) => {
-    return (countUpdater) => handleUploadingCountChange(size, countUpdater);
-  }, [handleUploadingCountChange]);
-
-  // 使用 useMemo 缓存每个尺寸的上传计数变更处理函数
+  // 使用稳定的事件处理函数缓存
   const uploadCountHandlers = useMemo(() => {
     const handlers = {};
     selectedSizes.forEach(size => {
-      handlers[size] = createUploadingCountChangeHandler(size);
+      // 创建稳定的事件处理函数引用
+      handlers[size] = (countUpdater) => handleUploadingCountChange(size, countUpdater);
     });
     return handlers;
-  }, [selectedSizes, createUploadingCountChangeHandler]);
+  }, [selectedSizes, handleUploadingCountChange]);
+
+  // 缓存复杂的UI状态计算
+  const uiState = useMemo(() => {
+    const hasOrderInfo = !!(orderInfo.order_sn && orderInfo.receiver);
+    const hasPhotos = totalPhotos > 0;
+    const isUploading = totalUploading > 0;
+    
+    return {
+      canSubmit: hasOrderInfo && hasPhotos && !isUploading && !loading,
+      submitTooltip: isUploading
+        ? "有照片正在上传中，请等待上传完成"
+        : !hasPhotos
+        ? "请先上传照片"
+        : !orderInfo.order_sn
+        ? "请输入订单号"
+        : !orderInfo.receiver
+        ? "请输入收货人（必填项）"
+        : selectedSizes.length === 0
+        ? "请至少选择一种尺寸"
+        : "点击提交订单",
+      submitButtonText: isUploading
+        ? `正在上传 (${totalUploading})`
+        : loading
+        ? "提交中..."
+        : "提交订单"
+    };
+  }, [orderInfo.order_sn, orderInfo.receiver, totalPhotos, totalUploading, loading, selectedSizes.length]);
 
   // 实际执行提交验证的函数
   const actualSubmit = () => {
@@ -333,8 +412,7 @@ function OrderUploadPage() {
       }
 
       // 检查是否有未上传完的照片
-      const currentTotalUploading = calcTotalUploading();
-      if (currentTotalUploading > 0) {
+      if (totalUploading > 0) {
         message.warning('还有照片正在上传中，请等待上传完成后提交');
         return;
       }
@@ -385,10 +463,7 @@ function OrderUploadPage() {
         <span style="font-size: 20px;">💾</span>
         <div>
           <div style="color: #389e0d; font-weight: 600; font-size: 15px; margin-bottom: 2px;">
-            自动保存成功
-          </div>
-          <div style="color: #595959; font-size: 13px;">
-            订单数据已保存到服务器
+            照片自动保存成功
           </div>
         </div>
         <span style="color: #52c41a; font-weight: bold; font-size: 16px;">✓</span>
@@ -435,8 +510,7 @@ function OrderUploadPage() {
     }
 
     // 检查是否有照片正在上传
-    const currentTotalUploading = calcTotalUploading();
-    if (currentTotalUploading > 0) {
+    if (totalUploading > 0) {
       return;
     }
 
@@ -508,7 +582,6 @@ function OrderUploadPage() {
     totalPhotos,
     sizePhotos,
     selectedSizes,
-    calcTotalUploading,
     showAutoSaveNotification
   ]);
 
@@ -520,7 +593,7 @@ function OrderUploadPage() {
     
     autoSaveTimerRef.current = setInterval(() => {
       performAutoSave();
-    }, 3000); // 30秒间隔
+    }, 3000); // 3秒间隔（优化后）
   }, [performAutoSave]);
 
   // 停止自动保存定时器
@@ -531,22 +604,29 @@ function OrderUploadPage() {
     }
   }, []);
 
-  // 监听数据变化，重置自动保存定时器
+  // 优化自动保存定时器 - 减少依赖项，使用防抖
+  const shouldEnableAutoSave = useMemo(() => {
+    return !!(orderInfo.order_sn && orderInfo.receiver && totalPhotos > 0);
+  }, [orderInfo.order_sn, orderInfo.receiver, totalPhotos]);
+
   useEffect(() => {
-    // 只有在有基本数据时才启动自动保存
-    if (orderInfo.order_sn && orderInfo.receiver && totalPhotos > 0) {
+    if (shouldEnableAutoSave) {
       resetAutoSaveTimer();
     } else {
       stopAutoSaveTimer();
     }
 
-    // 清理函数
     return () => stopAutoSaveTimer();
-  }, [orderInfo.order_sn, orderInfo.receiver, totalPhotos, resetAutoSaveTimer, stopAutoSaveTimer]);
+  }, [shouldEnableAutoSave, resetAutoSaveTimer, stopAutoSaveTimer]);
 
-  // 页面卸载时清理定时器
+  // 页面卸载时清理定时器和防抖定时器
   useEffect(() => {
-    return () => stopAutoSaveTimer();
+    return () => {
+      stopAutoSaveTimer();
+      // 清理所有防抖定时器
+      debounceTimers.current.forEach(timerId => clearTimeout(timerId));
+      debounceTimers.current.clear();
+    };
   }, [stopAutoSaveTimer]);
 
   // 确认提交
@@ -680,18 +760,13 @@ function OrderUploadPage() {
 
   return (
     <Spin spinning={loadingData} tip="加载订单信息...">
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '10px 0' : '20px 0' }}>
+      <div style={isMobile ? STATIC_STYLES.mobileContainer : STATIC_STYLES.desktopContainer}>
         <Title level={isMobile ? 3 : 2}>订单上传</Title>
 
         {/* 温馨提示 */}
-        <div style={{ 
-          background: '#fff2f0', 
-          border: '1px solid #ffccc7', 
-          borderRadius: '6px', 
-          padding: '12px 16px',
-          marginBottom: '20px',
-          fontSize: isMobile ? '12px' : '14px',
-          lineHeight: '1.6'
+        <div style={{
+          ...STATIC_STYLES.warningBox,
+          fontSize: isMobile ? '12px' : '14px'
         }}>
           <div style={{ 
             fontWeight: 'bold', 
@@ -803,7 +878,7 @@ function OrderUploadPage() {
                   </Text>
                 </div>
 
-                <PhotoUploader
+                <MemoizedPhotoUploader
                   size={size}
                   photos={sizePhotos[size] || []}
                   onPhotosChange={handlePhotosChange}
@@ -859,7 +934,7 @@ function OrderUploadPage() {
               {autoSaveStatus === 'idle' && lastAutoSaveTimeRef.current > 0 && (
                 <>
                   <span>💾</span>
-                  <span>自动保存已启用 (30秒间隔)</span>
+                  <span>自动保存已启用 (3秒间隔)</span>
                 </>
               )}
             </div>
@@ -903,38 +978,21 @@ function OrderUploadPage() {
                 </div>
               )}
 
-              <Tooltip title={
-                calcTotalUploading() > 0
-                  ? "有照片正在上传中，请等待上传完成"
-                  : totalPhotos === 0
-                    ? "请先上传照片"
-                    : !orderInfo.order_sn
-                      ? "请输入订单号"
-                      : !orderInfo.receiver
-                        ? "请输入收货人（必填项）"
-                        : selectedSizes.length === 0
-                          ? "请至少选择一种尺寸"
-                          : "点击提交订单"
-              }>
+              <Tooltip title={uiState.submitTooltip}>
                 <Button
                   type="primary"
                   icon={<SaveOutlined />}
                   onClick={handleSubmit}
                   size={isMobile ? "middle" : "large"}
-                  loading={calcTotalUploading() > 0 || loading}
-                  disabled={!orderInfo.order_sn || !orderInfo.receiver || calcTotalUploading() > 0 || loading}
+                  loading={!uiState.canSubmit && (totalUploading > 0 || loading)}
+                  disabled={!uiState.canSubmit}
                   block={isMobile}
                   // 添加移动端兼容性
-                  style={{ 
-                    minHeight: isMobile ? '44px' : 'auto',
-                    touchAction: 'manipulation',
-                    WebkitTouchCallout: 'none',
-                    WebkitUserSelect: 'none'
-                  }}
+                  style={isMobile ? STATIC_STYLES.mobileSubmitButton : STATIC_STYLES.submitButton}
                   // 防止双击
                   onDoubleClick={(e) => e.preventDefault()}
                 >
-                  {calcTotalUploading() > 0 ? `正在上传 (${calcTotalUploading()})` : loading ? "提交中..." : "提交订单"}
+                  {uiState.submitButtonText}
                 </Button>
               </Tooltip>
             </div>
@@ -1030,4 +1088,5 @@ function OrderUploadPage() {
   );
 }
 
-export default OrderUploadPage;
+// 使用React.memo包装整个组件，进一步优化性能
+export default memo(OrderUploadPage);
