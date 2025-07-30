@@ -155,7 +155,8 @@ export const submitOrder = withErrorBoundary(async (orderData) => {
     order_sn: orderData.order_sn,
     receiver: orderData.receiver,
     remark: orderData.remark,
-    photos: orderData.photos // 照片数组，包含spec和metadata字段
+    photos: orderData.photos, // 照片数组，包含spec和metadata字段
+    save_type: orderData.save_type // 保存类型：auto(自动保存) 或 manual(手动提交)
   };
   
   console.log('提交订单数据:', safeJsonStringify(submitData));

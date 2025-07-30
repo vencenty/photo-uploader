@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -59,6 +59,11 @@ function OrderUploadPage() {
 
   // 总照片数
   const [totalPhotos, setTotalPhotos] = useState(0);
+  
+  // 自动保存相关状态
+  const [autoSaveStatus, setAutoSaveStatus] = useState('idle'); // idle, saving, success, error
+  const autoSaveTimerRef = useRef(null);
+  const lastAutoSaveTimeRef = useRef(0);
   
 
 
@@ -359,8 +364,139 @@ function OrderUploadPage() {
     }
   };
 
+  // 自动保存函数
+  const performAutoSave = useCallback(async () => {
+    // 防止重复自动保存
+    if (autoSaveStatus === 'saving' || loading) {
+      return;
+    }
+
+    // 基本验证 - 必须有订单号和收货人
+    if (!orderInfo.order_sn || !orderInfo.receiver) {
+      return;
+    }
+
+    // 检查是否有照片正在上传
+    const currentTotalUploading = calcTotalUploading();
+    if (currentTotalUploading > 0) {
+      return;
+    }
+
+    // 检查是否有照片
+    if (totalPhotos === 0) {
+      return;
+    }
+
+    setAutoSaveStatus('saving');
+    
+    try {
+      // 准备提交数据 - 复用手动提交的逻辑
+      const photosArray = [];
+
+      Object.entries(sizePhotos).forEach(([sizeStr, photos]) => {
+        if (selectedSizes.includes(sizeStr) && photos.length > 0) {
+          const metadata = photos.map(photo => ({
+            url: photo.serverUrl || photo.url,
+            is_resized: photo.cropped ? 1 : 0,
+            num: photo.quantity || 1
+          }));
+
+          photosArray.push({
+            spec: sizeStr,
+            metadata: metadata
+          });
+        }
+      });
+
+      const submitData = {
+        order_sn: orderInfo.order_sn,
+        receiver: orderInfo.receiver,
+        remark: orderInfo.remark,
+        photos: photosArray,
+        save_type: 'auto' // 标记这是自动保存请求
+      };
+
+      console.log('自动保存订单数据:', submitData);
+
+      const response = await submitOrder(submitData);
+
+      if (response.code === 0) {
+        setAutoSaveStatus('success');
+        lastAutoSaveTimeRef.current = Date.now();
+        
+        // 显示成功提示（不干扰用户）
+        message.success({
+          content: '订单已自动保存',
+          duration: 2,
+          style: { marginTop: '10px' }
+        });
+        
+        // 3秒后恢复状态
+        setTimeout(() => setAutoSaveStatus('idle'), 3000);
+      } else {
+        throw new Error(response.msg || '自动保存失败');
+      }
+    } catch (error) {
+      console.error('自动保存失败:', error);
+      setAutoSaveStatus('error');
+      
+      // 静默处理错误，不干扰用户体验
+      setTimeout(() => setAutoSaveStatus('idle'), 5000);
+    }
+  }, [
+    autoSaveStatus,
+    loading,
+    orderInfo.order_sn,
+    orderInfo.receiver,
+    orderInfo.remark,
+    totalPhotos,
+    sizePhotos,
+    selectedSizes,
+    calcTotalUploading
+  ]);
+
+  // 启动/重置自动保存定时器
+  const resetAutoSaveTimer = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearInterval(autoSaveTimerRef.current);
+    }
+    
+    autoSaveTimerRef.current = setInterval(() => {
+      performAutoSave();
+    }, 30000); // 30秒间隔
+  }, [performAutoSave]);
+
+  // 停止自动保存定时器
+  const stopAutoSaveTimer = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearInterval(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }, []);
+
+  // 监听数据变化，重置自动保存定时器
+  useEffect(() => {
+    // 只有在有基本数据时才启动自动保存
+    if (orderInfo.order_sn && orderInfo.receiver && totalPhotos > 0) {
+      resetAutoSaveTimer();
+    } else {
+      stopAutoSaveTimer();
+    }
+
+    // 清理函数
+    return () => stopAutoSaveTimer();
+  }, [orderInfo.order_sn, orderInfo.receiver, totalPhotos, resetAutoSaveTimer, stopAutoSaveTimer]);
+
+  // 页面卸载时清理定时器
+  useEffect(() => {
+    return () => stopAutoSaveTimer();
+  }, [stopAutoSaveTimer]);
+
   // 确认提交
   const handleConfirmSubmit = async () => {
+    // 停止自动保存，避免冲突
+    stopAutoSaveTimer();
+    
     setLoading(true);
     try {
       // 准备提交数据 - 按照API文档要求的格式
@@ -398,19 +534,21 @@ function OrderUploadPage() {
         order_sn: orderInfo.order_sn,
         receiver: orderInfo.receiver,
         remark: orderInfo.remark,
-        photos: photosArray
+        photos: photosArray,
+        save_type: 'manual' // 标记这是手动提交请求
       };
 
       // 调用API提交订单
       const response = await submitOrder(submitData);
 
       if (response.code === 0) {
-        // 统计每种尺寸的照片数量
+        // 统计每种尺寸的照片数量（考虑每张照片的quantity）
         const sizePhotoCount = {};
         Object.entries(sizePhotos).forEach(([size, photos]) => {
           // 只统计选中的尺寸
           if (selectedSizes.includes(size)) {
-            sizePhotoCount[size] = photos.length;
+            // 计算该尺寸下所有照片的总数量（考虑每张照片的quantity）
+            sizePhotoCount[size] = photos.reduce((sum, photo) => sum + (photo.quantity || 1), 0);
           }
         });
 
@@ -430,6 +568,7 @@ function OrderUploadPage() {
       } else {
         // 处理各种错误情况
         setIsModalOpen(false); // 无论什么错误都先关闭对话框
+        resetAutoSaveTimer(); // 重新启动自动保存
 
         if (response.code === -1 && response.msg && response.msg.includes('订单已经进入处理流程')) {
           // 订单已进入处理流程的特殊错误
@@ -446,8 +585,9 @@ function OrderUploadPage() {
     } catch (error) {
       console.error('提交订单失败:', error);
 
-      // 关闭确认对话框
+      // 关闭确认对话框并重新启动自动保存
       setIsModalOpen(false);
+      resetAutoSaveTimer();
 
       // 处理错误情况
       if (error.response && error.response.data) {
@@ -621,6 +761,50 @@ function OrderUploadPage() {
 
         {/* 底部统计和提交 */}
         <Card style={{ marginBottom: 16 }}>
+          {/* 自动保存状态显示 */}
+          {(autoSaveStatus !== 'idle' || lastAutoSaveTimeRef.current > 0) && (
+            <div style={{ 
+              marginBottom: 16, 
+              padding: '8px 12px', 
+              background: autoSaveStatus === 'saving' ? '#f6ffed' : 
+                         autoSaveStatus === 'success' ? '#f6ffed' : 
+                         autoSaveStatus === 'error' ? '#fff2f0' : '#fafafa',
+              border: `1px solid ${autoSaveStatus === 'saving' ? '#b7eb8f' : 
+                                   autoSaveStatus === 'success' ? '#b7eb8f' : 
+                                   autoSaveStatus === 'error' ? '#ffccc7' : '#d9d9d9'}`,
+              borderRadius: 6,
+              fontSize: 12,
+              color: autoSaveStatus === 'error' ? '#cf1322' : '#52c41a',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              {autoSaveStatus === 'saving' && (
+                <>
+                  <span>🔄</span>
+                  <span>正在自动保存...</span>
+                </>
+              )}
+              {autoSaveStatus === 'success' && (
+                <>
+                  <span>✅</span>
+                  <span>订单已自动保存</span>
+                </>
+              )}
+              {autoSaveStatus === 'error' && (
+                <>
+                  <span>⚠️</span>
+                  <span>自动保存失败，请手动保存</span>
+                </>
+              )}
+              {autoSaveStatus === 'idle' && lastAutoSaveTimeRef.current > 0 && (
+                <>
+                  <span>💾</span>
+                  <span>自动保存已启用 (30秒间隔)</span>
+                </>
+              )}
+            </div>
+          )}
           <div style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
