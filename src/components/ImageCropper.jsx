@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Modal, Button, message } from 'antd';
 import { SwapOutlined } from '@ant-design/icons';
 import ReactCrop from 'react-easy-crop';
@@ -161,7 +161,7 @@ const StatusBadge = styled.span`
  * @param {number} props.aspectRatio 裁剪比例（宽/高）
  * @param {boolean} props.isMobile 是否是移动设备
  */
-const ImageCropper = ({
+const ImageCropper = memo(({
   image,
   originalImage,
   visible,
@@ -431,7 +431,10 @@ const ImageCropper = ({
       </ControlsContainer>
     </Modal>
   );
-};
+});
+
+// 设置组件显示名称，便于调试
+ImageCropper.displayName = 'ImageCropper';
 
 /**
  * 获取裁剪后的图片

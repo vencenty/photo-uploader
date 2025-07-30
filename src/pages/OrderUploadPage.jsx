@@ -106,13 +106,14 @@ function OrderUploadPage() {
     return unadjustedInfo;
   }, [selectedSizes, sizePhotos]);
 
-  // 计算总照片数
+  // 计算总照片数（考虑每张照片的数量）
   useEffect(() => {
     let total = 0;
     Object.entries(sizePhotos).forEach(([size, photos]) => {
       // 只统计选中尺寸的照片
       if (selectedSizes.includes(size)) {
-        total += photos.length;
+        // 累加每张照片的数量
+        total += photos.reduce((sum, photo) => sum + (photo.quantity || 1), 0);
       }
     });
     setTotalPhotos(total);
@@ -162,7 +163,8 @@ function OrderUploadPage() {
                     url: photoMeta.url,
                     serverUrl: photoMeta.url,
                     status: 'done',
-                    cropped: photoMeta.is_resized === 1 // 根据is_resized设置cropped状态
+                    cropped: photoMeta.is_resized === 1, // 根据is_resized设置cropped状态
+                    quantity: photoMeta.num || 1 // 从服务端返回的num字段设置数量
                   }));
                 }
               });
@@ -252,7 +254,7 @@ function OrderUploadPage() {
   };
 
   // 为特定尺寸更新上传计数的处理函数
-  const handleUploadingCountChange = (size, countUpdater) => {
+  const handleUploadingCountChange = useCallback((size, countUpdater) => {
     setUploadingPhotosBySize(prev => {
       const currentCount = prev[size] || 0;
       const newCount = typeof countUpdater === 'function'
@@ -280,7 +282,26 @@ function OrderUploadPage() {
 
       return result;
     });
-  };
+  }, []);
+
+  // 优化的照片变更处理函数
+  const handlePhotosChange = useCallback((newPhotos) => {
+    setSizePhotos(newPhotos);
+  }, []);
+
+  // 为每个尺寸创建优化的上传计数变更回调
+  const createUploadingCountChangeHandler = useCallback((size) => {
+    return (countUpdater) => handleUploadingCountChange(size, countUpdater);
+  }, [handleUploadingCountChange]);
+
+  // 使用 useMemo 缓存每个尺寸的上传计数变更处理函数
+  const uploadCountHandlers = useMemo(() => {
+    const handlers = {};
+    selectedSizes.forEach(size => {
+      handlers[size] = createUploadingCountChangeHandler(size);
+    });
+    return handlers;
+  }, [selectedSizes, createUploadingCountChangeHandler]);
 
   // 实际执行提交验证的函数
   const actualSubmit = () => {
@@ -352,7 +373,8 @@ function OrderUploadPage() {
           // 获取尺寸对应的metadata信息
           const metadata = photos.map(photo => ({
             url: photo.serverUrl || photo.url,
-            is_resized: photo.cropped ? 1 : 0 // 1表示已调整尺寸，0表示未调整
+            is_resized: photo.cropped ? 1 : 0, // 1表示已调整尺寸，0表示未调整
+            num: photo.quantity || 1 // 用户设置的照片数量
           }));
 
           // 按API文档格式添加到photos数组
@@ -579,15 +601,17 @@ function OrderUploadPage() {
                   marginBottom: 16
                 }}>
                   <Title level={4}>{size}</Title>
-                  <Text type="secondary">已上传 {sizePhotos[size]?.length || 0} 张</Text>
+                  <Text type="secondary">
+                    已上传 {sizePhotos[size]?.length || 0} 个文件，共 {sizePhotos[size]?.reduce((sum, photo) => sum + (photo.quantity || 1), 0) || 0} 张
+                  </Text>
                 </div>
 
                 <PhotoUploader
                   size={size}
                   photos={sizePhotos[size] || []}
-                  onPhotosChange={setSizePhotos}
+                  onPhotosChange={handlePhotosChange}
                   uploadingCount={uploadingPhotosBySize[size] || 0}
-                  onUploadingCountChange={(countUpdater) => handleUploadingCountChange(size, countUpdater)}
+                  onUploadingCountChange={uploadCountHandlers[size]}
                   isMobile={isMobile}
                 />
               </div>

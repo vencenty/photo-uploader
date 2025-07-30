@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
@@ -7,7 +7,7 @@ import { getAspectRatioByName } from '../config/photo';
  * 满版预览组件
  * 显示满版照片的预览效果（无白边，填满整个相纸）
  */
-const FullVersionPreview = ({ 
+const FullVersionPreview = memo(({ 
   visible, 
   onClose, 
   imageUrl, 
@@ -181,6 +181,9 @@ const FullVersionPreview = ({
       </div>
     </Modal>
   );
-};
+});
+
+// 设置组件显示名称，便于调试
+FullVersionPreview.displayName = 'FullVersionPreview';
 
 export default FullVersionPreview; 

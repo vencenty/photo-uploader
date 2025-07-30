@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { Button, Tag, Image, Typography } from 'antd';
+import React, { useCallback, useMemo, useRef, useState, useEffect, memo } from 'react';
+import { Button, Tag, Image, Typography, Modal, InputNumber, message } from 'antd';
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
@@ -39,6 +39,7 @@ const PhotoItem = React.memo(({
   onCrop,
   onDelete,
   onPreview,
+  onQuantityChange,
   showPreview,
   previewType,
   formatFileSize,
@@ -56,6 +57,27 @@ const PhotoItem = React.memo(({
   // 添加状态来管理处理后的图片URL
   const [processedImageUrl, setProcessedImageUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // 数量修改相关状态
+  const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
+  const [tempQuantity, setTempQuantity] = useState(photo.quantity || 1);
+  
+  // 处理数量修改
+  const handleQuantityConfirm = () => {
+    if (tempQuantity < 1 || tempQuantity > 10000) {
+      message.error('数量必须在1-10000之间');
+      return;
+    }
+    onQuantityChange(photo.id, tempQuantity);
+    setIsQuantityModalVisible(false);
+    message.success(`已设置数量为 ${tempQuantity} 张`);
+  };
+  
+  // 打开数量修改弹窗
+  const showQuantityModal = () => {
+    setTempQuantity(photo.quantity || 1);
+    setIsQuantityModalVisible(true);
+  };
   
   // 处理图片旋转 - 添加更稳定的依赖项和重复处理检查
   useEffect(() => {
@@ -84,7 +106,7 @@ const PhotoItem = React.memo(({
   }, [photo.url, photo.id]); // 添加photo.id作为稳定的标识符
   
   // 计算预览框的实际尺寸 - 重新设计高度分配
-  const btnHeight = 60; // 固定按钮区域高度为60px
+  const btnHeight = 50; // 固定按钮区域高度为50px（减少了10px）
   const textHeight = 40; // 固定文件名区域高度为40px  
   const imageHeight = itemHeight - btnHeight - textHeight; // 剩余空间全部给图片区域
   
@@ -124,14 +146,24 @@ const PhotoItem = React.memo(({
         width: '100%',
         height: '100%',
         background: '#fff',
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        border: '1px solid #f0f0f0',
+        borderRadius: 12,
+        boxShadow: '0 3px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)',
+        border: '1px solid #f5f5f5',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         overflow: 'hidden',
-      }}>
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = '0 3px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)';
+      }}
+      >
         {/* 图片区域 */}
         <div style={{
           width: '100%',
@@ -172,6 +204,41 @@ const PhotoItem = React.memo(({
               placeholder={<div style={{ width: previewWidth, height: previewHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
             />
           )}
+          {/* 数量角标 */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
+              color: 'white',
+              padding: '3px 10px',
+              borderRadius: 16,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 3px 8px rgba(82, 196, 26, 0.4), 0 1px 3px rgba(0,0,0,0.1)',
+              minWidth: 36,
+              textAlign: 'center',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              border: '1.5px solid rgba(255,255,255,0.9)',
+              userSelect: 'none',
+              zIndex: 10
+            }}
+            onClick={showQuantityModal}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'scale(1.1) translateY(-1px)';
+              e.target.style.boxShadow = '0 4px 12px rgba(82, 196, 26, 0.5), 0 2px 6px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'scale(1) translateY(0)';
+              e.target.style.boxShadow = '0 3px 8px rgba(82, 196, 26, 0.4), 0 1px 3px rgba(0,0,0,0.1)';
+            }}
+            title="点击修改数量"
+          >
+            {photo.quantity || 1}张
+          </div>
+
           {/* 状态标签 */}
           <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {showPreview && (
@@ -201,33 +268,160 @@ const PhotoItem = React.memo(({
             {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''}
           </div>
         </div>
-        {/* 按钮区域 */}
+        {/* 按钮区域 - 现代化设计 */}
         <div style={{ 
           width: '100%', 
           height: btnHeight, 
           display: 'flex', 
           gap: 10, 
-          padding: '8px 12px', 
+          padding: '7px 16px',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          background: '#fafafa'
         }}>
           <Button
-            type="text"
-            icon={<ScissorOutlined style={{ fontSize: 14 }} />}
+            type="default"
+            icon={<ScissorOutlined style={{ fontSize: 13 }} />}
             onClick={() => onCrop(photo)}
-            size="small"
-            style={{ flex: 1, height: '100%', fontSize: 12, border: '1px solid #d9d9d9', borderRadius: 4, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}
-          >调整</Button>
+            style={{ 
+              flex: 1, 
+              height: '32px', 
+              fontSize: 12, 
+              borderRadius: 8,
+              border: '1px solid #e0e0e0',
+              background: 'white',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontWeight: 500,
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.borderColor = '#40a9ff';
+              e.target.style.color = '#40a9ff';
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 2px 6px rgba(64, 169, 255, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.borderColor = '#e0e0e0';
+              e.target.style.color = '';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+            }}
+          >
+            调整
+          </Button>
           <Button
-            type="text"
             danger
-            icon={<DeleteOutlined style={{ fontSize: 14 }} />}
+            icon={<DeleteOutlined style={{ fontSize: 13 }} />}
             onClick={() => onDelete(photo.id)}
-            size="small"
-            style={{ flex: 1, height: '100%', fontSize: 12, border: '1px solid #ff4d4f', borderRadius: 4, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}
-          >删除</Button>
+            style={{ 
+              flex: 1, 
+              height: '32px', 
+              fontSize: 12, 
+              borderRadius: 8,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontWeight: 500,
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 2px 6px rgba(255, 77, 79, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+            }}
+          >
+            删除
+          </Button>
         </div>
       </div>
+      
+      {/* 数量修改弹窗 */}
+      <Modal
+        title={
+          <div style={{ 
+            fontSize: 16, 
+            fontWeight: 600, 
+            color: '#262626',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            🖨️ 设置打印数量
+          </div>
+        }
+        open={isQuantityModalVisible}
+        onOk={handleQuantityConfirm}
+        onCancel={() => setIsQuantityModalVisible(false)}
+        okText="确认设置"
+        cancelText="取消"
+        width={420}
+        centered
+        styles={{
+          body: { padding: '24px 0' },
+          header: { borderBottom: '1px solid #f0f0f0', paddingBottom: 16 }
+        }}
+      >
+        <div style={{ padding: '0 8px' }}>
+          <div style={{ 
+            marginBottom: 20, 
+            fontSize: 14, 
+            color: '#595959',
+            textAlign: 'center'
+          }}>
+            为这张照片设置需要冲印的数量
+          </div>
+          
+          <div style={{
+            background: '#f8f9fa',
+            padding: '20px',
+            borderRadius: 12,
+            border: '1px solid #e8e8e8'
+          }}>
+            <InputNumber
+              value={tempQuantity}
+              onChange={setTempQuantity}
+              min={1}
+              max={10000}
+              style={{ 
+                width: '100%',
+                fontSize: 16,
+                textAlign: 'center'
+              }}
+              placeholder="请输入数量"
+              addonAfter="张"
+              size="large"
+              controls={{
+                upIcon: <div style={{ fontSize: 12 }}>＋</div>,
+                downIcon: <div style={{ fontSize: 12 }}>－</div>
+              }}
+            />
+          </div>
+          
+          <div style={{ 
+            marginTop: 16, 
+            fontSize: 12, 
+            color: '#8c8c8c',
+            background: '#fafafa',
+            padding: '12px',
+            borderRadius: 8,
+            border: '1px solid #f0f0f0'
+          }}>
+            <div>💡 <strong>温馨提示：</strong></div>
+            <div style={{ marginTop: 4, lineHeight: 1.5 }}>
+              • 数量范围：1-10000张<br/>
+              • 设置后会按此数量进行冲印<br/>
+              • 可随时修改，不影响其他照片
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }, (prevProps, nextProps) => {
@@ -238,6 +432,7 @@ const PhotoItem = React.memo(({
     prevProps.photo.name === nextProps.photo.name &&
     prevProps.photo.compressed === nextProps.photo.compressed &&
     prevProps.photo.cropped === nextProps.photo.cropped &&
+    prevProps.photo.quantity === nextProps.photo.quantity &&
     prevProps.showPreview === nextProps.showPreview &&
     prevProps.previewType === nextProps.previewType &&
     prevProps.itemWidth === nextProps.itemWidth &&
@@ -246,11 +441,12 @@ const PhotoItem = React.memo(({
   );
 });
 
-const VirtualPhotoGrid = ({
+const VirtualPhotoGrid = memo(({
   photos = [],
   onCropPhoto,
   onDeletePhoto,
   onPreviewPhoto,
+  onQuantityChange,
   showPreview = false,
   previewType = 'whiteBorder',
   isMobile = false,
@@ -282,13 +478,14 @@ const VirtualPhotoGrid = ({
         onCrop={onCropPhoto}
         onDelete={onDeletePhoto}
         onPreview={onPreviewPhoto}
+        onQuantityChange={onQuantityChange}
         showPreview={showPreview}
         previewType={previewType}
         formatFileSize={formatFileSize}
         style={style}
         itemWidth={itemWidth}
         itemHeight={itemHeight}
-                  size={size}
+        size={size}
       />
     );
   }, [photos, columnCount, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize, itemWidth, itemHeight, size]);
@@ -345,6 +542,9 @@ const VirtualPhotoGrid = ({
       </Image.PreviewGroup>
     </div>
   );
-};
+});
+
+// 设置组件显示名称，便于调试
+VirtualPhotoGrid.displayName = 'VirtualPhotoGrid';
 
 export default VirtualPhotoGrid;

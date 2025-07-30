@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
@@ -8,7 +8,7 @@ import { getAspectRatioByName } from '../config/photo';
  * 留白预览组件
  * 参考photo-preview.html实现留白相纸效果预览
  */
-const WhiteBorderPreview = ({ 
+const WhiteBorderPreview = memo(({ 
   visible, 
   onClose, 
   imageUrl, 
@@ -185,6 +185,9 @@ const WhiteBorderPreview = ({
       </div>
     </Modal>
   );
-};
+});
+
+// 设置组件显示名称，便于调试
+WhiteBorderPreview.displayName = 'WhiteBorderPreview';
 
 export default WhiteBorderPreview; 

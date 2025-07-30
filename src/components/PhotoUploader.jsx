@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, memo } from 'react';
 import { Upload, Button, message, Typography, Card, Row, Col, Tag, Image } from 'antd';
 import { 
   PictureOutlined, DeleteOutlined, CompressOutlined, 
@@ -23,7 +23,7 @@ const MAX_CONCURRENT_UPLOADS = uploadConfig.maxSimultaneousUploads;
 /**
  * 照片上传组件
  */
-const PhotoUploader = ({ 
+const PhotoUploader = memo(({ 
   size, 
   photos = [], 
   onPhotosChange,
@@ -48,7 +48,7 @@ const PhotoUploader = ({
   const activeUploadsRef = useRef(0);
   
   // 处理队列中的下一个上传任务
-  const processNextUpload = () => {
+  const processNextUpload = useCallback(() => {
     if (uploadQueueRef.current.length === 0 || activeUploadsRef.current >= MAX_CONCURRENT_UPLOADS) {
       return;
     }
@@ -84,7 +84,7 @@ const PhotoUploader = ({
       // 继续处理队列中的下一个上传
       processNextUpload();
     });
-  };
+  }, []);
   
   // 处理单个文件上传
   const processFileUpload = async (file, onProgress, onSuccess, onError) => {
@@ -128,7 +128,9 @@ const PhotoUploader = ({
           compressed: needCompression,
           // 记录原始大小和压缩后大小
           originalSize: file.size,
-          compressedSize: processedFile.size
+          compressedSize: processedFile.size,
+          // 默认数量为1
+          quantity: 1
         };
         
         // 更新照片列表
@@ -207,7 +209,7 @@ const PhotoUploader = ({
   };
   
   // 处理删除照片
-  const handleDeletePhoto = (photoId) => {
+  const handleDeletePhoto = useCallback((photoId) => {
     // 检查是否正在上传
     if (uploadingCount > 0) {
       message.warning('有照片正在上传，请等待上传完成后再删除');
@@ -231,10 +233,10 @@ const PhotoUploader = ({
       console.error('删除照片失败:', error);
       message.error('删除照片失败，请重试');
     }
-  };
+  }, [uploadingCount, photos, onPhotosChange, size]);
   
   // 打开裁剪对话框
-  const handleCropPhoto = (photo) => {
+  const handleCropPhoto = useCallback((photo) => {
     // 检查是否正在上传
     if (uploadingCount > 0) {
       message.warning('有照片正在上传，请等待上传完成后再裁剪');
@@ -243,7 +245,7 @@ const PhotoUploader = ({
     
     setCurrentPhoto(photo);
     setCropperVisible(true);
-  };
+  }, [uploadingCount]);
   
   // 处理裁剪完成
   const handleCropComplete = async (croppedFile) => {
@@ -272,6 +274,8 @@ const PhotoUploader = ({
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,
+              // 保持原有的数量设置
+              quantity: updatedPhotos[photoIndex].quantity || 1
             };
           }
           
@@ -292,6 +296,8 @@ const PhotoUploader = ({
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,
+              // 保持原有的数量设置
+              quantity: currentPhoto.quantity || 1
             };
             setFullVersionPreviewPhoto(updatedPhoto);
             setFullVersionPreviewVisible(true);
@@ -325,7 +331,7 @@ const PhotoUploader = ({
   const isFullVersionSize = !isWhiteBorderSize; // 非留白的都是满版
   
   // 处理预览照片
-  const handlePreviewPhoto = (photo) => {
+  const handlePreviewPhoto = useCallback((photo) => {
     // 检查是否正在上传
     if (uploadingCount > 0) {
       message.warning('有照片正在上传，请等待上传完成后再预览');
@@ -349,7 +355,34 @@ const PhotoUploader = ({
         handleCropPhoto(photo);
       }
     }
-  };
+  }, [uploadingCount, isWhiteBorderSize, isFullVersionSize, handleCropPhoto]);
+
+  // 处理照片数量变化
+  const handleQuantityChange = useCallback((photoId, newQuantity) => {
+    // 检查是否正在上传
+    if (uploadingCount > 0) {
+      message.warning('有照片正在上传，请等待上传完成后再修改数量');
+      return;
+    }
+    
+    // 更新照片列表中对应照片的数量
+    onPhotosChange(prev => {
+      const updatedPhotos = [...prev[size]];
+      const photoIndex = updatedPhotos.findIndex(p => p.id === photoId);
+      
+      if (photoIndex !== -1) {
+        updatedPhotos[photoIndex] = {
+          ...updatedPhotos[photoIndex],
+          quantity: newQuantity
+        };
+      }
+      
+      return {
+        ...prev,
+        [size]: updatedPhotos
+      };
+    });
+  }, [uploadingCount, onPhotosChange, size]);
   
 
   
@@ -393,6 +426,7 @@ const PhotoUploader = ({
             onCropPhoto={handleCropPhoto}
             onDeletePhoto={handleDeletePhoto}
             onPreviewPhoto={handlePreviewPhoto}
+            onQuantityChange={handleQuantityChange}
             showPreview={isWhiteBorderSize || isFullVersionSize}
             previewType={isWhiteBorderSize ? 'whiteBorder' : 'fullVersion'}
             isMobile={isMobile}
@@ -437,6 +471,9 @@ const PhotoUploader = ({
       )}
     </div>
   );
-};
+});
+
+// 设置组件显示名称，便于调试
+PhotoUploader.displayName = 'PhotoUploader';
 
 export default PhotoUploader;
