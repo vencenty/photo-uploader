@@ -58,6 +58,7 @@ export default defineConfig({
       },
       '/api': {
         target: 'https://photo-kits-server.vencenty.cc',
+        //target: 'http://localhost:8787',
         changeOrigin: true,
         secure: true
       }
