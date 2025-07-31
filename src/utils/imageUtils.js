@@ -129,15 +129,17 @@ const cleanupCache = () => {
 };
 
 /**
- * 处理图片旋转 - 如果是横图则旋转90度（带缓存）
+ * 🚀 优化的图片旋转处理 - 智能缓存 + 避免重复网络请求
  * @param {string} imageUrl 图片URL
  * @returns {Promise<string>} 处理后的图片URL
  */
 export const processImageRotation = (imageUrl) => {
-  // 检查缓存
-  if (imageProcessCache.has(imageUrl)) {
-    console.log("🎯 使用缓存的图片处理结果：", imageUrl);
-    return Promise.resolve(imageProcessCache.get(imageUrl));
+  // 检查全局缓存（包括来自其他组件的缓存）
+  const globalCache = (typeof window !== 'undefined' && window.imageProcessCache) || imageProcessCache;
+  
+  if (globalCache.has(imageUrl)) {
+    // console.log("🎯 使用缓存的图片处理结果：", imageUrl);
+    return Promise.resolve(globalCache.get(imageUrl));
   }
   return new Promise((resolve, reject) => {
     if (!imageUrl) {
@@ -184,21 +186,24 @@ export const processImageRotation = (imageUrl) => {
           // 转换为 data URL
           const rotatedImageUrl = canvas.toDataURL("image/jpeg", 0.95);
           console.log("✅ 横图旋转完成！");
-          // 缓存处理结果
-          imageProcessCache.set(imageUrl, rotatedImageUrl);
+          // 缓存处理结果到全局缓存
+          const globalCache = (typeof window !== 'undefined' && window.imageProcessCache) || imageProcessCache;
+          globalCache.set(imageUrl, rotatedImageUrl);
           cleanupCache();
           resolve(rotatedImageUrl);
         } else {
           console.log("📱 竖图直接显示，无需处理");
-          // 竖图直接使用原图，也要缓存
-          imageProcessCache.set(imageUrl, imageUrl);
+          // 竖图直接使用原图，也要缓存到全局缓存
+          const globalCache = (typeof window !== 'undefined' && window.imageProcessCache) || imageProcessCache;
+          globalCache.set(imageUrl, imageUrl);
           cleanupCache();
           resolve(imageUrl);
         }
       } catch (error) {
         console.error("❌ 图片处理出错：", error);
-        // 出错时使用原图，也要缓存避免重复处理
-        imageProcessCache.set(imageUrl, imageUrl);
+        // 出错时使用原图，也要缓存到全局缓存避免重复处理
+        const globalCache = (typeof window !== 'undefined' && window.imageProcessCache) || imageProcessCache;
+        globalCache.set(imageUrl, imageUrl);
         cleanupCache();
         resolve(imageUrl);
       }
@@ -207,8 +212,9 @@ export const processImageRotation = (imageUrl) => {
     image.onerror = (error) => {
       console.error("❌ 图片加载失败：", error);
       console.log("📷 使用原图URL");
-      // 失败时使用原图，也要缓存避免重复尝试
-      imageProcessCache.set(imageUrl, imageUrl);
+      // 失败时使用原图，也要缓存到全局缓存避免重复尝试
+      const globalCache = (typeof window !== 'undefined' && window.imageProcessCache) || imageProcessCache;
+      globalCache.set(imageUrl, imageUrl);
       cleanupCache();
       resolve(imageUrl);
     };

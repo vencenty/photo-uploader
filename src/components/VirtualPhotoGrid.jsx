@@ -7,7 +7,7 @@ import { getAspectRatioByName } from '../config/photo';
 
 const { Text } = Typography;
 
-// 动态自适应网格参数
+// 🚀 优化的动态自适应网格参数 - 使用缓存避免重复计算
 function useGridLayout(isMobile, photoCount) {
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(360);
@@ -24,14 +24,24 @@ function useGridLayout(isMobile, photoCount) {
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  // 最小item宽度180px，最大5列，移动端最多2列
-  const minItemWidth = 180;
-  let maxColumns = isMobile ? 2 : 5;
-  let columnCount = Math.max(1, Math.min(maxColumns, Math.floor(containerWidth / minItemWidth)));
-  if (photoCount < columnCount) columnCount = photoCount || 1;
-  const itemWidth = Math.floor(containerWidth / columnCount);
-  const itemHeight = Math.floor(itemWidth * 1.4); // 从1.15增加到1.4，给整个卡片更多高度
-  return { containerRef, containerWidth, columnCount, itemWidth, itemHeight };
+  // 🚀 使用useMemo缓存布局计算，避免不必要的重新计算
+  const layoutParams = useMemo(() => {
+    // 最小item宽度180px，最大5列，移动端最多2列
+    const minItemWidth = 180;
+    let maxColumns = isMobile ? 2 : 5;
+    let columnCount = Math.max(1, Math.min(maxColumns, Math.floor(containerWidth / minItemWidth)));
+    if (photoCount < columnCount) columnCount = photoCount || 1;
+    const itemWidth = Math.floor(containerWidth / columnCount);
+    const itemHeight = Math.floor(itemWidth * 1.4); // 从1.15增加到1.4，给整个卡片更多高度
+    
+    return { columnCount, itemWidth, itemHeight };
+  }, [containerWidth, isMobile, photoCount]);
+
+  return { 
+    containerRef, 
+    containerWidth, 
+    ...layoutParams 
+  };
 }
 
 const PhotoItem = React.memo(({
@@ -79,43 +89,40 @@ const PhotoItem = React.memo(({
     setIsQuantityModalVisible(true);
   };
   
-  // 处理图片旋转 - 使用全局缓存优化性能
+  // 🚀 终极优化的图片处理 - 直接使用processImageRotation的内置缓存
   useEffect(() => {
     const processImage = async () => {
       if (!photo.url) return;
       
-      // 检查全局缓存
-      if (imageProcessCache.has(photo.url)) {
-        const cachedUrl = imageProcessCache.get(photo.url);
-        if (cachedUrl !== processedImageUrl) {
-          setProcessedImageUrl(cachedUrl);
-        }
-        return;
-      }
+      console.log(`🔍 PhotoItem ${photo.name} - 开始图片处理检查`);
       
-      // 如果已经有处理结果，跳过重新处理
-      if (processedImageUrl) {
-        return;
-      }
-      
+      // 🚀 直接调用processImageRotation，它内部已经有完整的缓存逻辑
       setIsProcessing(true);
       try {
         const rotatedUrl = await processImageRotation(photo.url);
-        // 存储到全局缓存
-        imageProcessCache.set(photo.url, rotatedUrl);
         setProcessedImageUrl(rotatedUrl);
+        console.log(`✅ PhotoItem ${photo.name} - 图片处理完成`);
       } catch (error) {
-        console.error('图片处理失败：', error);
-        const fallbackUrl = photo.url;
-        imageProcessCache.set(photo.url, fallbackUrl);
-        setProcessedImageUrl(fallbackUrl);
+        console.error(`❌ PhotoItem ${photo.name} - 图片处理失败:`, error);
+        setProcessedImageUrl(photo.url); // 失败时使用原图
       } finally {
         setIsProcessing(false);
       }
     };
     
     processImage();
-  }, [photo.url]); // 只依赖URL变化
+  }, [photo.url, photo.lastModified, photo.name]); // 添加name用于调试
+  
+  // 🔍 调试：监控useEffect触发（只在图片处理时）
+  useEffect(() => {
+    if (photo.url) {
+      console.log(`📸 PhotoItem useEffect 触发 - ${photo.name}:`, {
+        url: photo.url,
+        lastModified: photo.lastModified,
+        cropped: photo.cropped
+      });
+    }
+  }, [photo.url, photo.lastModified]); // 移除photo.name和photo.cropped避免额外触发
   
   // 计算预览框的实际尺寸 - 重新设计高度分配
   const btnHeight = 50; // 固定按钮区域高度为50px（减少了10px）
@@ -437,24 +444,62 @@ const PhotoItem = React.memo(({
     </div>
   );
 }, (prevProps, nextProps) => {
-  // 自定义比较函数 - 只有关键props变化时才重新渲染
-  return (
-    prevProps.photo.id === nextProps.photo.id &&
-    prevProps.photo.url === nextProps.photo.url &&
-    prevProps.photo.name === nextProps.photo.name &&
-    prevProps.photo.compressed === nextProps.photo.compressed &&
-    prevProps.photo.cropped === nextProps.photo.cropped &&
-    prevProps.photo.quantity === nextProps.photo.quantity &&
-    prevProps.showPreview === nextProps.showPreview &&
-    prevProps.previewType === nextProps.previewType &&
-    prevProps.itemWidth === nextProps.itemWidth &&
-    prevProps.itemHeight === nextProps.itemHeight &&
-    prevProps.size === nextProps.size
+  // 🚀 超精确的比较函数 - 避免不必要的重新渲染
+  const photoChanged = (
+    prevProps.photo.id !== nextProps.photo.id ||
+    prevProps.photo.url !== nextProps.photo.url ||
+    prevProps.photo.name !== nextProps.photo.name ||
+    prevProps.photo.compressed !== nextProps.photo.compressed ||
+    prevProps.photo.cropped !== nextProps.photo.cropped ||
+    prevProps.photo.quantity !== nextProps.photo.quantity ||
+    prevProps.photo.lastModified !== nextProps.photo.lastModified
   );
+  
+  const propsChanged = (
+    prevProps.showPreview !== nextProps.showPreview ||
+    prevProps.previewType !== nextProps.previewType ||
+    prevProps.itemWidth !== nextProps.itemWidth ||
+    prevProps.itemHeight !== nextProps.itemHeight ||
+    prevProps.size !== nextProps.size
+  );
+  
+  // 🔍 调试：记录组件是否重新渲染
+  const shouldRerender = photoChanged || propsChanged;
+  if (shouldRerender) {
+    console.log(`🔄 PhotoItem ${nextProps.photo.name} 重新渲染:`, {
+      photoChanged,
+      propsChanged,
+      photoData: {
+        prevUrl: prevProps.photo.url,
+        nextUrl: nextProps.photo.url,
+        prevCropped: prevProps.photo.cropped,
+        nextCropped: nextProps.photo.cropped,
+        prevLastModified: prevProps.photo.lastModified,
+        nextLastModified: nextProps.photo.lastModified
+      },
+      layoutData: {
+        prevItemWidth: prevProps.itemWidth,
+        nextItemWidth: nextProps.itemWidth,
+        prevItemHeight: prevProps.itemHeight,
+        nextItemHeight: nextProps.itemHeight
+      }
+    });
+  }
+  
+  return !shouldRerender;
 });
 
-// 全局图片处理缓存，避免重复处理
-const imageProcessCache = new Map();
+// 🚀 统一使用全局图片处理缓存，避免缓存冲突导致重复请求
+let imageProcessCache;
+if (typeof window !== 'undefined') {
+  // 优先使用已存在的全局缓存
+  if (!window.imageProcessCache) {
+    window.imageProcessCache = new Map();
+  }
+  imageProcessCache = window.imageProcessCache;
+} else {
+  imageProcessCache = new Map();
+}
 
 const VirtualPhotoGrid = memo(({
   photos = [],
@@ -469,6 +514,31 @@ const VirtualPhotoGrid = memo(({
   containerHeight
 }) => {
   const { containerRef, containerWidth, columnCount, itemWidth, itemHeight } = useGridLayout(isMobile, photos.length);
+  
+  // 🔍 调试：监控布局参数变化和VirtualPhotoGrid重新渲染
+  useEffect(() => {
+    console.log('🔄 VirtualPhotoGrid 重新渲染 - 布局参数:', {
+      containerWidth,
+      columnCount,
+      itemWidth,
+      itemHeight,
+      photosLength: photos.length,
+      timestamp: Date.now()
+    });
+  }, [containerWidth, columnCount, itemWidth, itemHeight, photos.length]);
+  
+  // 🚨 额外调试：监控photos数组的变化
+  useEffect(() => {
+    console.log('📝 VirtualPhotoGrid photos数组变化:', {
+      photosLength: photos.length,
+      photoIds: photos.map(p => p.id),
+      timestamp: Date.now()
+    });
+  }, [photos]);
+  
+  // 🚀 使用ref保存photos的最新引用，避免Cell函数重新创建
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
   // 格式化文件大小
   const formatFileSize = useCallback((bytes) => {
@@ -481,29 +551,34 @@ const VirtualPhotoGrid = memo(({
   // 计算行数
   const rowCount = Math.ceil(photos.length / columnCount);
 
-  // 单元格渲染函数
-  const Cell = useCallback(({ columnIndex, rowIndex, style }) => {
+  // 🚀 缓存静态props，避免每次都传递新的对象引用  
+  const staticProps = useMemo(() => ({
+    itemWidth,
+    itemHeight,
+    size,
+    showPreview,
+    previewType
+  }), [itemWidth, itemHeight, size, showPreview, previewType]);
+
+  // 🚀 终极优化：单元格渲染函数 - 使用itemData避免重新创建
+  const Cell = useCallback(({ columnIndex, rowIndex, style, data }) => {
     const photoIndex = rowIndex * columnCount + columnIndex;
-    const photo = photos[photoIndex];
+    const photo = data.photos[photoIndex];
     if (!photo) return <div style={style} />;
     return (
       <PhotoItem
         key={photo.id}
         photo={photo}
-        onCrop={onCropPhoto}
-        onDelete={onDeletePhoto}
-        onPreview={onPreviewPhoto}
-        onQuantityChange={onQuantityChange}
-        showPreview={showPreview}
-        previewType={previewType}
-        formatFileSize={formatFileSize}
+        onCrop={data.onCropPhoto}
+        onDelete={data.onDeletePhoto}
+        onPreview={data.onPreviewPhoto}
+        onQuantityChange={data.onQuantityChange}
+        formatFileSize={data.formatFileSize}
         style={style}
-        itemWidth={itemWidth}
-        itemHeight={itemHeight}
-        size={size}
+        {...data.staticProps}
       />
     );
-  }, [photos, columnCount, onCropPhoto, onDeletePhoto, onPreviewPhoto, showPreview, previewType, formatFileSize, itemWidth, itemHeight, size]);
+  }, [columnCount]); // 只依赖columnCount
 
   // 空状态
   if (photos.length === 0) {
@@ -551,6 +626,15 @@ const VirtualPhotoGrid = memo(({
           overscanRowCount={1}
           overscanColumnCount={0}
           style={{ outline: 'none' }}
+          itemData={{ 
+            photos: photosRef.current,
+            onCropPhoto,
+            onDeletePhoto,
+            onPreviewPhoto,
+            onQuantityChange,
+            formatFileSize,
+            staticProps
+          }}
         >
           {Cell}
         </Grid>

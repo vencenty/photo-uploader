@@ -342,10 +342,10 @@ function OrderUploadPage() {
     timers.set(key, timerId);
   }, []);
 
-  // 优化的照片变更处理函数 - 添加防抖
-  const handlePhotosChange = useCallback((newPhotos) => {
-    // 立即更新UI，但防抖后续计算
-    setSizePhotos(newPhotos);
+  // ✅ 修复：handlePhotosChange 应该直接传递状态更新函数
+  const handlePhotosChange = useCallback((stateUpdater) => {
+    // PhotoUploader传递的是状态更新函数，直接传给setSizePhotos
+    setSizePhotos(stateUpdater);
   }, []);
 
   // 使用稳定的事件处理函数缓存
@@ -593,7 +593,7 @@ function OrderUploadPage() {
     
     autoSaveTimerRef.current = setInterval(() => {
       performAutoSave();
-    }, 3000); // 3秒间隔（优化后）
+    }, 30000); // 3秒间隔（优化后）
   }, [performAutoSave]);
 
   // 停止自动保存定时器

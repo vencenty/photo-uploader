@@ -133,11 +133,20 @@ const PhotoUploader = memo(({
           quantity: 1
         };
         
-        // 更新照片列表
-        onPhotosChange(prev => ({
-          ...prev,
-          [size]: [...(prev[size] || []), newPhoto]
-        }));
+        // 🚀 优化：精确更新照片列表，避免触发其他照片重新渲染
+        onPhotosChange(prev => {
+          const currentSizePhotos = prev[size] || [];
+          
+          // 只有当实际需要添加新照片时才更新状态
+          if (currentSizePhotos.some(p => p.id === newPhoto.id)) {
+            return prev; // 照片已存在，不更新
+          }
+          
+          return {
+            ...prev,
+            [size]: [...currentSizePhotos, newPhoto]
+          };
+        });
         
         const sizeReduction = needCompression 
           ? `，压缩率: ${((1 - processedFile.size / file.size) * 100).toFixed(0)}%` 
@@ -222,11 +231,25 @@ const PhotoUploader = memo(({
       const photoToDelete = photos.find(photo => photo.id === photoId);
       const photoName = photoToDelete?.name || '照片';
       
-      // 更新照片列表
-      onPhotosChange(prev => ({
-        ...prev,
-        [size]: prev[size].filter(photo => photo.id !== photoId)
-      }));
+      // 🚀 优化：精确删除照片，避免触发其他照片重新渲染
+      onPhotosChange(prev => {
+        const currentSizePhotos = prev[size] || [];
+        const photoIndex = currentSizePhotos.findIndex(p => p.id === photoId);
+        
+        // 如果照片不存在，不更新状态
+        if (photoIndex === -1) return prev;
+        
+        // 使用精确的数组操作，保持其他照片的引用不变
+        const newSizePhotos = [
+          ...currentSizePhotos.slice(0, photoIndex),
+          ...currentSizePhotos.slice(photoIndex + 1)
+        ];
+        
+        return {
+          ...prev,
+          [size]: newSizePhotos
+        };
+      });
       
       message.success(`${photoName} 已删除`);
     } catch (error) {
@@ -247,9 +270,16 @@ const PhotoUploader = memo(({
     setCropperVisible(true);
   }, [uploadingCount]);
   
-  // 处理裁剪完成
-  const handleCropComplete = async (croppedFile) => {
-    if (!currentPhoto) return;
+  // 🚀 防重复调用的裁剪完成处理
+  const handleCropComplete = useCallback(async (croppedFile) => {
+    if (!currentPhoto) {
+      console.warn('⚠️ handleCropComplete: currentPhoto 为空，跳过处理');
+      return;
+    }
+    
+    // 🛡️ 防重复调用保护
+    const cropKey = `${currentPhoto.id}_${Date.now()}`;
+    console.log(`🔧 handleCropComplete 开始 - ${cropKey}`);
     
     try {
       // 显示上传中消息
@@ -262,57 +292,99 @@ const PhotoUploader = memo(({
         // 获取新的URL
         const photoUrl = response.data.url || response.data;
         
-        // 更新照片列表，替换原照片
+        // 🚀 优化：使用更精确的状态更新，避免触发其他照片的重新渲染
+        console.log(`🔧 ${cropKey} - 开始状态更新:`, {
+          photoId: currentPhoto.id,
+          newUrl: photoUrl,
+          size: size
+        });
+        
+        // 🛡️ 防重复状态更新 - 使用单次执行保护
+        let hasUpdated = false;
+        
         onPhotosChange(prev => {
-          const updatedPhotos = [...prev[size]];
-          const photoIndex = updatedPhotos.findIndex(p => p.id === currentPhoto.id);
-          
-          if (photoIndex !== -1) {
-            updatedPhotos[photoIndex] = {
-              ...updatedPhotos[photoIndex],
-              url: photoUrl,
-              serverUrl: photoUrl,
-              name: croppedFile.name,
-              cropped: true,
-              // 保持原有的数量设置
-              quantity: updatedPhotos[photoIndex].quantity || 1
-            };
+          if (hasUpdated) {
+            console.warn(`⚠️ ${cropKey} - 重复状态更新被阻止!`);
+            return prev;
           }
+          
+          // 检查是否真的需要更新
+          const currentSizePhotos = prev[size] || [];
+          const photoIndex = currentSizePhotos.findIndex(p => p.id === currentPhoto.id);
+          
+          if (photoIndex === -1) {
+            console.warn(`⚠️ ${cropKey} - 找不到照片，跳过更新`);
+            return prev;
+          }
+          
+          const currentPhotoData = currentSizePhotos[photoIndex];
+          
+          // 检查是否实际发生了变化
+          if (currentPhotoData.url === photoUrl && currentPhotoData.cropped === true) {
+            console.log(`ℹ️ ${cropKey} - 没有实际变化，跳过更新`);
+            return prev;
+          }
+          
+          // 🚀 精确更新：只更新目标照片，其他照片保持原引用
+          const newSizePhotos = [...currentSizePhotos]; // 浅拷贝数组
+          const updatedPhoto = {
+            ...currentSizePhotos[photoIndex],
+            url: photoUrl,
+            serverUrl: photoUrl,
+            name: croppedFile.name,
+            cropped: true,
+            quantity: currentSizePhotos[photoIndex].quantity || 1,
+            lastModified: Date.now()
+          };
+          
+          // 只替换被修改的照片
+          newSizePhotos[photoIndex] = updatedPhoto;
+          
+          hasUpdated = true; // 标记已更新
+          console.log(`🎯 ${cropKey} - 状态更新完成:`, {
+            updatedPhotoId: updatedPhoto.id,
+            arrayLength: newSizePhotos.length,
+            size: size
+          });
           
           return {
             ...prev,
-            [size]: updatedPhotos
+            [size]: newSizePhotos
           };
         });
         
         message.success('照片裁剪并上传成功');
         
-        // 如果是满版类型，裁剪完成后自动打开预览
+        // 🚀 优化：满版类型裁剪完成后，直接使用更新后的照片对象预览
         if (isFullVersionSize) {
           setTimeout(() => {
-            const updatedPhoto = {
+            // 直接使用刚才创建的updatedPhoto对象，避免额外的状态访问
+            const previewPhoto = {
               ...currentPhoto,
               url: photoUrl,
               serverUrl: photoUrl,
               name: croppedFile.name,
               cropped: true,
-              // 保持原有的数量设置
-              quantity: currentPhoto.quantity || 1
+              quantity: currentPhoto.quantity || 1,
+              lastModified: Date.now()
             };
-            setFullVersionPreviewPhoto(updatedPhoto);
+            
+            setFullVersionPreviewPhoto(previewPhoto);
             setFullVersionPreviewVisible(true);
           }, 500); // 延迟500ms让用户看到成功消息
         }
       } else {
+        console.error(`❌ ${cropKey} - 上传失败:`, response.msg);
         message.error(response.msg || '裁剪照片上传失败');
       }
     } catch (error) {
-      console.error('裁剪照片上传失败:', error);
+      console.error(`❌ ${cropKey} - 异常:`, error);
       message.error('裁剪照片上传失败，请重试');
     } finally {
+      console.log(`🏁 ${cropKey} - 处理完成`);
       message.destroy(); // 关闭loading消息
     }
-  };
+  }, [currentPhoto, size, onPhotosChange]);
   
   // 格式化文件大小
   const formatFileSize = (bytes) => {
@@ -365,21 +437,31 @@ const PhotoUploader = memo(({
       return;
     }
     
-    // 更新照片列表中对应照片的数量
+    // 🚀 优化：精确更新数量，避免触发其他照片重新渲染
     onPhotosChange(prev => {
-      const updatedPhotos = [...prev[size]];
-      const photoIndex = updatedPhotos.findIndex(p => p.id === photoId);
+      const currentSizePhotos = prev[size] || [];
+      const photoIndex = currentSizePhotos.findIndex(p => p.id === photoId);
       
-      if (photoIndex !== -1) {
-        updatedPhotos[photoIndex] = {
-          ...updatedPhotos[photoIndex],
-          quantity: newQuantity
-        };
+      // 如果照片不存在或数量没有变化，不更新状态
+      if (photoIndex === -1 || currentSizePhotos[photoIndex].quantity === newQuantity) {
+        return prev;
       }
+      
+      // 只更新目标照片，其他照片保持原引用
+      const newSizePhotos = currentSizePhotos.map((photo, index) => {
+        if (index === photoIndex) {
+          return {
+            ...photo,
+            quantity: newQuantity,
+            lastModified: Date.now() // 添加修改时间戳
+          };
+        }
+        return photo; // 保持原引用
+      });
       
       return {
         ...prev,
-        [size]: updatedPhotos
+        [size]: newSizePhotos
       };
     });
   }, [uploadingCount, onPhotosChange, size]);

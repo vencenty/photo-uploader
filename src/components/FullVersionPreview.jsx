@@ -3,6 +3,16 @@ import { Modal, Button } from 'antd';
 import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
 
+// 🚀 使用与VirtualPhotoGrid相同的全局缓存，避免重复处理
+let previewImageProcessCache;
+try {
+  // 尝试获取已有的全局缓存
+  previewImageProcessCache = window.imageProcessCache || new Map();
+  window.imageProcessCache = previewImageProcessCache;
+} catch (e) {
+  previewImageProcessCache = new Map();
+}
+
 /**
  * 满版预览组件
  * 显示满版照片的预览效果（无白边，填满整个相纸）
@@ -24,18 +34,29 @@ const FullVersionPreview = memo(({
     onClose();
   };
 
-  // 处理图片 - 使用统一的工具函数
+  // 🚀 优化的图片处理 - 使用全局缓存，避免重复处理
   const processImage = async () => {
     if (!imageUrl || !visible) return;
+    
+    // 检查全局缓存，避免重复处理
+    if (previewImageProcessCache.has(imageUrl)) {
+      const cachedUrl = previewImageProcessCache.get(imageUrl);
+      setProcessedImageUrl(cachedUrl);
+      return;
+    }
     
     setIsProcessing(true);
     
     try {
       const rotatedUrl = await processImageRotation(imageUrl);
+      // 存储到全局缓存
+      previewImageProcessCache.set(imageUrl, rotatedUrl);
       setProcessedImageUrl(rotatedUrl);
     } catch (error) {
       console.error('满版图片处理失败：', error);
-      setProcessedImageUrl(imageUrl); // 使用原图
+      // 失败时也缓存原图，避免重复尝试
+      previewImageProcessCache.set(imageUrl, imageUrl);
+      setProcessedImageUrl(imageUrl);
     } finally {
       setIsProcessing(false);
     }

@@ -3,6 +3,15 @@ import { Modal, Button } from 'antd';
 import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
 
+// 🚀 使用全局缓存，避免重复处理
+let whiteBorderImageProcessCache;
+try {
+  whiteBorderImageProcessCache = window.imageProcessCache || new Map();
+  window.imageProcessCache = whiteBorderImageProcessCache;
+} catch (e) {
+  whiteBorderImageProcessCache = new Map();
+}
+
 
 /**
  * 留白预览组件
@@ -25,18 +34,29 @@ const WhiteBorderPreview = memo(({
     onClose();
   };
 
-  // 处理图片 - 使用统一的工具函数
+  // 🚀 优化的图片处理 - 使用全局缓存，避免重复处理
   const processImage = async () => {
     if (!imageUrl || !visible) return;
+    
+    // 检查全局缓存，避免重复处理
+    if (whiteBorderImageProcessCache.has(imageUrl)) {
+      const cachedUrl = whiteBorderImageProcessCache.get(imageUrl);
+      setProcessedImageUrl(cachedUrl);
+      return;
+    }
     
     setIsProcessing(true);
     
     try {
       const rotatedUrl = await processImageRotation(imageUrl);
+      // 存储到全局缓存
+      whiteBorderImageProcessCache.set(imageUrl, rotatedUrl);
       setProcessedImageUrl(rotatedUrl);
     } catch (error) {
       console.error('图片处理失败：', error);
-      setProcessedImageUrl(imageUrl); // 使用原图
+      // 失败时也缓存原图，避免重复尝试
+      whiteBorderImageProcessCache.set(imageUrl, imageUrl);
+      setProcessedImageUrl(imageUrl);
     } finally {
       setIsProcessing(false);
     }
