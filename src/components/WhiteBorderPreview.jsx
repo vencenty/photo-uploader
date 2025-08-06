@@ -1,16 +1,7 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { memo } from 'react';
 import { Modal, Button } from 'antd';
-import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
-
-// 🚀 使用全局缓存，避免重复处理
-let whiteBorderImageProcessCache;
-try {
-  whiteBorderImageProcessCache = window.imageProcessCache || new Map();
-  window.imageProcessCache = whiteBorderImageProcessCache;
-} catch (e) {
-  whiteBorderImageProcessCache = new Map();
-}
+import { usePreviewImageProcessor } from '../hooks/useImageProcessor';
 
 
 /**
@@ -24,53 +15,19 @@ const WhiteBorderPreview = memo(({
   size,
   isMobile = false 
 }) => {
-  const [processedImageUrl, setProcessedImageUrl] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  // 🚀 使用统一的图片处理Hook
+  const {
+    processedImageUrl,
+    isProcessing,
+    error,
+    handleClose: cleanupImage
+  } = usePreviewImageProcessor(imageUrl, visible);
 
   // 关闭预览时清理状态
   const handleClose = () => {
-    setProcessedImageUrl('');
-    setIsProcessing(false);
+    cleanupImage();
     onClose();
   };
-
-  // 🚀 优化的图片处理 - 使用全局缓存，避免重复处理
-  const processImage = async () => {
-    if (!imageUrl || !visible) return;
-    
-    // 检查全局缓存，避免重复处理
-    if (whiteBorderImageProcessCache.has(imageUrl)) {
-      const cachedUrl = whiteBorderImageProcessCache.get(imageUrl);
-      setProcessedImageUrl(cachedUrl);
-      return;
-    }
-    
-    setIsProcessing(true);
-    
-    try {
-      const rotatedUrl = await processImageRotation(imageUrl);
-      // 存储到全局缓存
-      whiteBorderImageProcessCache.set(imageUrl, rotatedUrl);
-      setProcessedImageUrl(rotatedUrl);
-    } catch (error) {
-      console.error('图片处理失败：', error);
-      // 失败时也缓存原图，避免重复尝试
-      whiteBorderImageProcessCache.set(imageUrl, imageUrl);
-      setProcessedImageUrl(imageUrl);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // 当预览打开或图片URL变化时处理图片
-  useEffect(() => {
-    if (visible && imageUrl) {
-      processImage();
-    } else {
-      setProcessedImageUrl('');
-      setIsProcessing(false);
-    }
-  }, [visible, imageUrl]);
 
   // 相纸样式 - 参考 photo-preview.html，固定为竖向相纸
   const photoPreviewStyle = {
@@ -144,6 +101,14 @@ const WhiteBorderPreview = memo(({
             <br />
             <span style={{ color: '#faad14', fontWeight: 'bold' }}>
               🔄 正在处理图片中...
+            </span>
+          </>
+        )}
+        {error && (
+          <>
+            <br />
+            <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
+              ⚠️ 处理失败: {error}
             </span>
           </>
         )}

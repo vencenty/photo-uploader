@@ -4,6 +4,7 @@ import { Layout, theme } from 'antd';
 import OrderQueryPage from './pages/OrderQueryPage';
 import OrderUploadPage from './pages/OrderUploadPage';
 import SubmitSuccessPage from './pages/SubmitSuccessPage';
+import { useGlobalImageCleanup, useMemoryMonitor } from './hooks/useImageCleanup';
 
 const { Content, Footer } = Layout;
 
@@ -11,6 +12,14 @@ function App() {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
+  
+  // 🚀 启用全局资源清理和内存监控
+  useGlobalImageCleanup();
+  useMemoryMonitor({
+    threshold: 0.8, // 80%内存使用率时开始清理
+    checkInterval: 30000, // 每30秒检查一次
+    enabled: true
+  });
   
   // 跟踪屏幕宽度
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);

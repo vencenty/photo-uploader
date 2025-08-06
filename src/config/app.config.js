@@ -4,8 +4,8 @@
 
 // 上传相关配置
 export const uploadConfig = {
-    // 最大文件大小(字节)，30MB
-    maxFileSize: 30 * 1024 * 1024,
+    // 最大文件大小(字节)，50MB
+    maxFileSize: 50 * 1024 * 1024,
 
     // 图片压缩相关配置
     compression: {
