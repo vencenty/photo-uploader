@@ -40,65 +40,40 @@ function OrderQueryPage() {
       // 调用实际API获取订单信息
       const response = await getOrderInfo(orderSn);
 
-      if (response.code === 0) {
-        // 根据查询结果处理
-        if (response.data) {
-          // 有订单记录，带上订单信息跳转
-          message.success('查询到订单信息');
-        } else {
-          // 没有订单记录，仅带订单号跳转
-          message.info('未查询到订单信息，将创建新订单');
-        }
-        
-        // 只有在查询成功时才跳转到上传页面
-        navigate(`/upload?order_sn=${orderSn}`);
+      // 根据查询结果处理
+      if (response.data) {
+        // 有订单记录，带上订单信息跳转
+        message.success('查询到订单信息');
       } else {
-        // 查询失败，不跳转，显示错误信息
-        const errorMsg = response.msg || '订单查询失败';
-        message.error(`查询失败: ${errorMsg}`);
-        
-        // 设置错误信息用于显示
-        let errorType = 'unknown';
-        let errorDescription = '网络连接异常，请检查网络后重试';
-        
-        if (errorMsg.includes('500') || errorMsg.includes('Internal Server Error')) {
-          errorType = 'server';
-          errorDescription = '服务器暂时不可用，请稍后重试或联系客服';
-        } else if (errorMsg.includes('404') || errorMsg.includes('Not Found')) {
-          errorType = 'notfound';
-          errorDescription = '订单不存在，您可以创建新订单';
-        } else if (errorMsg.includes('timeout') || errorMsg.includes('超时')) {
-          errorType = 'timeout';
-          errorDescription = '请求超时，请检查网络连接后重试';
-        }
-        
-        setErrorInfo({
-          type: errorType,
-          message: errorMsg,
-          description: errorDescription
-        });
+        // 没有订单记录，仅带订单号跳转
+        message.info('未查询到订单信息，将创建新订单');
       }
+      
+      // 查询成功时跳转到上传页面
+      navigate(`/upload?order_sn=${orderSn}`);
     } catch (error) {
       console.error('查询订单失败:', error);
       
-      // 根据错误类型提供不同的错误信息
-      let errorType = 'network';
-      let errorDescription = '网络连接失败，请检查网络设置';
+      // 显示服务端返回的错误信息
+      message.error(error.message || '查询订单失败');
+      
+      // 设置错误信息用于显示
+      let errorType = 'unknown';
+      let errorDescription = '网络连接异常，请检查网络后重试';
       
       if (error.message) {
-        if (error.message.includes('timeout') || error.message.includes('超时')) {
+        if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
+          errorType = 'server';
+          errorDescription = '服务器暂时不可用，请稍后重试或联系客服';
+        } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+          errorType = 'notfound';
+          errorDescription = '订单不存在，您可以创建新订单';
+        } else if (error.message.includes('timeout') || error.message.includes('超时')) {
           errorType = 'timeout';
           errorDescription = '请求超时，请检查网络连接后重试';
-        } else if (error.message.includes('network') || error.message.includes('网络')) {
-          errorType = 'network';
-          errorDescription = '网络连接失败，请检查网络设置';
-        } else if (error.message.includes('fetch')) {
-          errorType = 'server';
-          errorDescription = '无法连接到服务器，请稍后重试';
         }
       }
       
-      message.error(errorDescription);
       setErrorInfo({
         type: errorType,
         message: error.message || '查询订单失败',

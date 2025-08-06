@@ -103,6 +103,13 @@ export const getOrderInfo = withErrorBoundary(async (orderSn) => {
   }
 
   const data = await response.json();
+  
+  // 如果服务端返回的code不等于0，直接弹出服务端错误信息
+  if (data.code !== 0) {
+    const errorMessage = data.msg || '服务端错误';
+    throw new Error(errorMessage);
+  }
+  
   return data;
 }, async (orderSn) => {
   // 错误降级方案
