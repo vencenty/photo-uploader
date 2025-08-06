@@ -7,7 +7,7 @@ import {
   Modal, Spin, Statistic, Tooltip, notification
 } from 'antd';
 import {
-  SaveOutlined, InfoCircleOutlined, ScissorOutlined
+  SaveOutlined, InfoCircleOutlined, ScissorOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
@@ -121,6 +121,11 @@ function OrderUploadPage() {
   // 未调整大小提示对话框
   const [isResizeWarningOpen, setIsResizeWarningOpen] = useState(false);
   const [unadjustedPhotosInfo, setUnadjustedPhotosInfo] = useState([]);
+
+  // 尺寸取消确认对话框
+  const [isSizeCancelConfirmOpen, setIsSizeCancelConfirmOpen] = useState(false);
+  const [sizesToCancel, setSizesToCancel] = useState([]);
+  const [pendingCheckedSizes, setPendingCheckedSizes] = useState([]);
 
   // 修改：改用对象存储每个尺寸的上传状态
   const [uploadingPhotosBySize, setUploadingPhotosBySize] = useState({});
@@ -276,6 +281,29 @@ function OrderUploadPage() {
     // 获取已取消选择的尺寸
     const unselectedSizes = selectedSizes.filter(size => !checkedValue.includes(size));
 
+    // 检查被取消的尺寸中是否有已上传的照片
+    const sizesWithPhotos = unselectedSizes.filter(size => {
+      const photos = sizePhotos[size] || [];
+      return photos.length > 0;
+    });
+
+    // 如果有尺寸包含照片，需要用户确认
+    if (sizesWithPhotos.length > 0) {
+      setSizesToCancel(sizesWithPhotos);
+      setPendingCheckedSizes(checkedValue);
+      setIsSizeCancelConfirmOpen(true);
+      return; // 暂停处理，等待用户确认
+    }
+
+    // 如果没有照片需要删除，直接执行尺寸变更
+    executeSizeChange(checkedValue);
+  };
+
+  // 执行尺寸变更的具体逻辑
+  const executeSizeChange = (checkedValue) => {
+    // 获取已取消选择的尺寸
+    const unselectedSizes = selectedSizes.filter(size => !checkedValue.includes(size));
+
     setSelectedSizes(checkedValue);
 
     // 为新选择的尺寸初始化照片数组
@@ -310,6 +338,34 @@ function OrderUploadPage() {
     });
 
     setUploadingPhotosBySize(newUploadingCounts);
+  };
+
+  // 确认取消尺寸选择
+  const handleConfirmSizeCancel = () => {
+    // 执行尺寸变更，这会删除相关照片
+    executeSizeChange(pendingCheckedSizes);
+    
+    // 显示删除成功的提示
+    const totalDeletedPhotos = sizesToCancel.reduce((total, size) => {
+      const photos = sizePhotos[size] || [];
+      return total + photos.reduce((sum, photo) => sum + (photo.quantity || 1), 0);
+    }, 0);
+    
+    message.success(`已删除 ${totalDeletedPhotos} 张照片`);
+    
+    // 关闭确认对话框
+    setIsSizeCancelConfirmOpen(false);
+    setSizesToCancel([]);
+    setPendingCheckedSizes([]);
+  };
+
+  // 取消尺寸选择变更
+  const handleCancelSizeChange = () => {
+    // 不执行任何变更，保持原状
+    setIsSizeCancelConfirmOpen(false);
+    setSizesToCancel([]);
+    setPendingCheckedSizes([]);
+    // 不需要回滚selectedSizes，因为它还没有被修改
   };
 
   // 使用useCallback优化上传计数更新，减少依赖
@@ -1077,6 +1133,71 @@ function OrderUploadPage() {
                 • 如不调整，系统将默认按照照片居中进行裁切<br/>
                 • 可能会影响最终出片效果<br/>
                 • 建议点击"返回编辑"进行裁剪调整
+              </Text>
+            </div>
+          </div>
+        </Modal>
+
+        {/* 尺寸取消确认对话框 */}
+        <Modal
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', color: '#ff4d4f' }}>
+              <DeleteOutlined style={{ marginRight: 8 }} />
+              确认删除照片
+            </div>
+          }
+          open={isSizeCancelConfirmOpen}
+          onOk={handleConfirmSizeCancel}
+          onCancel={handleCancelSizeChange}
+          okText="确认删除"
+          cancelText="取消操作"
+          width={isMobile ? '95%' : 520}
+          okButtonProps={{ danger: true }}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ 
+              background: '#fff2f0', 
+              border: '1px solid #ffccc7', 
+              borderRadius: '6px', 
+              padding: '12px',
+              marginBottom: '16px'
+            }}>
+              <Text strong style={{ color: '#ff4d4f' }}>
+                ⚠️ 您即将取消以下尺寸的选择，这将删除已上传的照片：
+              </Text>
+            </div>
+            
+            {sizesToCancel.map((size, index) => {
+              const photos = sizePhotos[size] || [];
+              const totalPhotos = photos.reduce((sum, photo) => sum + (photo.quantity || 1), 0);
+              return (
+                <div key={index} style={{ 
+                  marginBottom: '12px', 
+                  padding: '8px 12px',
+                  background: '#fafafa',
+                  borderRadius: '4px',
+                  border: '1px solid #f0f0f0'
+                }}>
+                  <Text strong>{size}</Text>
+                  <Text style={{ marginLeft: '8px', color: '#ff4d4f' }}>
+                    将删除 {totalPhotos} 张照片 (共 {photos.length} 个文件)
+                  </Text>
+                </div>
+              );
+            })}
+            
+            <div style={{ 
+              background: '#fff7e6', 
+              border: '1px solid #ffd591', 
+              borderRadius: '6px', 
+              padding: '12px',
+              marginTop: '16px'
+            }}>
+              <Text style={{ color: '#d48806', lineHeight: '1.6' }}>
+                📌 <strong>重要提醒：</strong><br/>
+                • 删除后的照片无法恢复<br/>
+                • 如果您只是想重新选择照片，建议先删除单个照片再重新上传<br/>
+                • 确认删除后，相关的所有照片和设置都将被清除
               </Text>
             </div>
           </div>
