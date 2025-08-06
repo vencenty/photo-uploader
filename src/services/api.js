@@ -124,7 +124,7 @@ export const uploadPhoto = withErrorBoundary(async (file) => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await makeRequest(`${API_BASE_URL}/api/photo/upload`, {
+  const response = await makeRequest(`${API_BASE_URL}/api/upload/oss`, {
     method: 'POST',
     body: formData,
     // 上传文件不设置Content-Type，让浏览器自动设置包含boundary的multipart/form-data
