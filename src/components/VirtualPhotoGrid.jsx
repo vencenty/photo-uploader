@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState, useEffect, memo } from '
 import { Button, Tag, Image, Typography, Modal, InputNumber, message } from 'antd';
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { getProxiedImageUrl, processImageRotation } from '../utils/imageUtils';
+import { getProxiedImageUrl, processImageWithOSS } from '../utils/imageUtils';
 import { getAspectRatioByName } from '../config/photo';
 
 const { Text } = Typography;
@@ -64,9 +64,8 @@ const PhotoItem = React.memo(({
   // 判断是否为留白类型
   const isWhiteBorder = size.includes('留白');
   
-  // 添加状态来管理处理后的图片URL
-  const [processedImageUrl, setProcessedImageUrl] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  // 添加状态来管理图片尺寸信息
+  const [imageInfo, setImageInfo] = useState(null);
   
   // 数量修改相关状态
   const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
@@ -89,29 +88,46 @@ const PhotoItem = React.memo(({
     setIsQuantityModalVisible(true);
   };
   
-  // 🚀 终极优化的图片处理 - 直接使用processImageRotation的内置缓存
+  // 🚀 使用CSS transform旋转 - 更高效的图片处理方案
   useEffect(() => {
-    const processImage = async () => {
+    const getImageInfo = async () => {
       if (!photo.url) return;
       
-      console.log(`🔍 PhotoItem ${photo.name} - 开始图片处理检查`);
+      console.log(`🔍 PhotoItem ${photo.name} - 开始获取图片尺寸`);
       
-      // 🚀 直接调用processImageRotation，它内部已经有完整的缓存逻辑
-      setIsProcessing(true);
       try {
-        const rotatedUrl = await processImageRotation(photo.url);
-        setProcessedImageUrl(rotatedUrl);
-        console.log(`✅ PhotoItem ${photo.name} - 图片处理完成`);
+        // 获取图片尺寸
+        const imgElement = new window.Image();
+        const info = await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('图片加载超时'));
+          }, 10000);
+          
+          imgElement.onload = () => {
+            clearTimeout(timeout);
+            const w = imgElement.naturalWidth || imgElement.width;
+            const h = imgElement.naturalHeight || imgElement.height;
+            resolve({ width: w, height: h });
+          };
+          
+          imgElement.onerror = () => {
+            clearTimeout(timeout);
+            reject(new Error('图片加载失败'));
+          };
+          
+          imgElement.src = getProxiedImageUrl(photo.url);
+        });
+        
+        console.log(`🖼️ PhotoItem ${photo.name} - 图片尺寸:`, info.width, "x", info.height);
+        setImageInfo(info);
       } catch (error) {
-        console.error(`❌ PhotoItem ${photo.name} - 图片处理失败:`, error);
-        setProcessedImageUrl(photo.url); // 失败时使用原图
-      } finally {
-        setIsProcessing(false);
+        console.error(`❌ PhotoItem ${photo.name} - 获取图片尺寸失败:`, error);
+        setImageInfo(null);
       }
     };
     
-    processImage();
-  }, [photo.url, photo.lastModified, photo.name]); // 添加name用于调试
+    getImageInfo();
+  }, [photo.url, photo.lastModified, photo.name]);
   
   // 🔍 调试：监控useEffect触发（只在图片处理时）
   useEffect(() => {
@@ -145,7 +161,7 @@ const PhotoItem = React.memo(({
     previewHeight = previewWidth / aspectRatio;
   }
   
-  // 图片样式 - 使用固定尺寸
+  // 图片样式 - 使用固定尺寸，添加CSS transform旋转
   const imageStyle = {
     width: previewWidth,
     height: previewHeight,
@@ -157,6 +173,14 @@ const PhotoItem = React.memo(({
     padding: isWhiteBorder ? '6px' : '0px',
     border: isWhiteBorder ? '1px solid #e6e6e6' : 'none',
     boxShadow: isWhiteBorder ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+    // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
+    ...(imageInfo && imageInfo.width > imageInfo.height ? {
+      transform: 'rotate(90deg)',
+      transformOrigin: 'center center',
+      // 调整尺寸以适应旋转后的图片
+      width: previewHeight,
+      height: previewWidth,
+    } : {}),
   };
   
   return (
@@ -196,33 +220,17 @@ const PhotoItem = React.memo(({
           padding: '20px 12px 12px 12px', // 顶部20px，左右和底部12px，增加更多呼吸感
           boxSizing: 'border-box',
         }}>
-          {isProcessing ? (
-            <div style={{ 
-              width: previewWidth, 
-              height: previewHeight, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              color: '#999', 
-              fontSize: 12,
-              background: '#f5f5f5',
-              borderRadius: '4px'
-            }}>
-              处理中...
-            </div>
-          ) : (
-            <Image
-              src={processedImageUrl || getProxiedImageUrl(photo.url)}
-              alt={photo.name}
-              style={imageStyle}
-              preview={showPreview ? false : {
-                src: getProxiedImageUrl(photo.serverUrl || photo.url),
-                mask: <div style={{ fontSize: 12, background: 'rgba(0,0,0,0.5)', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>预览</div>
-              }}
-              onClick={showPreview ? () => onPreview(photo) : undefined}
-              placeholder={<div style={{ width: previewWidth, height: previewHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
-            />
-          )}
+          <Image
+            src={getProxiedImageUrl(photo.url)}
+            alt={photo.name}
+            style={imageStyle}
+            preview={showPreview ? false : {
+              src: getProxiedImageUrl(photo.serverUrl || photo.url),
+              mask: <div style={{ fontSize: 12, background: 'rgba(0,0,0,0.5)', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>预览</div>
+            }}
+            onClick={showPreview ? () => onPreview(photo) : undefined}
+            placeholder={<div style={{ width: previewWidth, height: previewHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: 12 }}>加载中...</div>}
+          />
           {/* 数量角标 */}
           <div 
             style={{

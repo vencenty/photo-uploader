@@ -36,7 +36,7 @@ export const createImageWithProxy = (url, useCrossOrigin = false) => {
       reject(new Error('图片加载超时'));
     }, 15000);
 
-    const image = new Image();
+    const image = new window.Image();
 
     image.addEventListener('load', () => {
       clearTimeout(timeout);
@@ -231,142 +231,185 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * 🚀 优化的图片旋转处理 - 使用Blob URL，避免内存泄漏
+ * 🚀 使用阿里云OSS图片处理参数 - 更高效的图片处理方案
  * @param {string} imageUrl 图片URL
  * @param {Object} options 配置选项
- * @returns {Promise<string>} 处理后的图片URL（Blob URL或原URL）
+ * @returns {Promise<string>} 处理后的图片URL
  */
-export const processImageRotation = async (imageUrl, options = {}) => {
+export const processImageWithOSS = async (imageUrl, options = {}) => {
   const { 
-    quality = 0.95,
-    maxRetries = 2,
-    timeout = 10000 
+    rotation = 'auto', // auto: 自动判断, 90: 旋转90度, 180: 旋转180度, 270: 旋转270度
+    quality = 90, // 图片质量 1-100
+    format = 'jpg', // 输出格式
+    resize = null, // 缩放参数 {width, height, mode}
+    cache = true // 是否使用缓存
   } = options;
 
   if (!imageUrl) {
     return imageUrl;
   }
 
-  // 检查全局缓存
+  // 检查缓存
+  if (cache) {
+    const cachedResult = globalImageCache.get(imageUrl);
+    if (cachedResult) {
+      console.log("🎯 使用缓存的OSS处理结果：", imageUrl);
+      return cachedResult;
+    }
+  }
+
+  console.log("🚀 开始OSS图片处理：", imageUrl);
+
+  try {
+    // 构建OSS图片处理参数
+    const ossParams = [];
+    
+    // 自动旋转检测
+    if (rotation === 'auto') {
+      ossParams.push('auto-orient,1'); // 自动检测并旋转
+    } else if (rotation) {
+      ossParams.push(`rotate,${rotation}`); // 手动旋转
+    }
+    
+    // 质量设置
+    if (quality) {
+      ossParams.push(`quality,q_${quality}`);
+    }
+    
+    // 格式转换
+    if (format) {
+      ossParams.push(`format,${format}`);
+    }
+    
+    // 缩放处理
+    if (resize) {
+      const { width, height, mode = 'lfit' } = resize;
+      if (width && height) {
+        ossParams.push(`resize,m_${mode},w_${width},h_${height}`);
+      } else if (width) {
+        ossParams.push(`resize,m_${mode},w_${width}`);
+      } else if (height) {
+        ossParams.push(`resize,m_${mode},h_${height}`);
+      }
+    }
+    
+    // 构建处理后的URL
+    let processedUrl = imageUrl;
+    if (ossParams.length > 0) {
+      const separator = imageUrl.includes('?') ? '&' : '?';
+      processedUrl = `${imageUrl}${separator}x-oss-process=${ossParams.join('/')}`;
+    }
+    
+    console.log("✅ OSS处理URL：", processedUrl);
+    
+    // 缓存结果
+    if (cache) {
+      globalImageCache.set(imageUrl, processedUrl);
+    }
+    
+    return processedUrl;
+    
+  } catch (error) {
+    console.error("❌ OSS图片处理失败：", error);
+    return imageUrl; // 失败时返回原图
+  }
+};
+
+/**
+ * 🚀 智能图片处理 - 根据图片尺寸自动判断是否需要旋转
+ * @param {string} imageUrl 图片URL
+ * @param {Object} options 配置选项
+ * @returns {Promise<string>} 处理后的图片URL
+ */
+export const processImageRotation = async (imageUrl, options = {}) => {
+  const { 
+    autoRotate = true, // 是否自动检测旋转
+    quality = 90,
+    format = 'jpg'
+  } = options;
+
+  if (!imageUrl) {
+    return imageUrl;
+  }
+
+  // 检查缓存
   const cachedResult = globalImageCache.get(imageUrl);
   if (cachedResult) {
     console.log("🎯 使用缓存的图片处理结果：", imageUrl);
     return cachedResult;
   }
 
-  console.log("🚀 开始处理图片旋转：", imageUrl);
-
-  // 创建超时Promise
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('图片处理超时')), timeout);
-  });
-
-  // 图片处理Promise
-  const processPromise = new Promise((resolve, reject) => {
-    const image = new Image();
-    
-    // 设置跨域
-    try {
-      image.crossOrigin = 'anonymous';
-    } catch (e) {
-      console.log("跨域设置失败，继续处理");
-    }
-    
-    image.onload = () => {
-      try {
-        const w = image.naturalWidth || image.width;
-        const h = image.naturalHeight || image.height;
-        
-        console.log("🖼️ 图片加载成功！原始尺寸：", w, "x", h);
-        console.log("📐 宽高比：", (w/h).toFixed(2), w > h ? "（横图，需要旋转）" : "（竖图，直接显示）");
-        
-        if (w > h) {
-          console.log("🔄 开始旋转横图...");
-          
-          // 创建canvas进行旋转
-          const canvas = document.createElement("canvas");
-          canvas.width = h;  // 旋转后宽度是原高度
-          canvas.height = w; // 旋转后高度是原宽度
-          const ctx = canvas.getContext("2d");
-          
-          if (!ctx) {
-            throw new Error('无法创建Canvas上下文');
-          }
-          
-          console.log("🎨 Canvas尺寸：", canvas.width, "x", canvas.height);
-          
-          // 移动到画布中心并旋转
-          ctx.translate(h / 2, w / 2);
-          ctx.rotate(Math.PI / 2); // 顺时针旋转90度
-          ctx.drawImage(image, -w / 2, -h / 2, w, h);
-          
-          // 转换为Blob，避免Data URL的内存问题
-          canvas.toBlob((blob) => {
-            if (!blob) {
-              console.error("❌ Blob创建失败");
-              // 失败时缓存原图
-              globalImageCache.set(imageUrl, imageUrl);
-              resolve(imageUrl);
-              return;
-            }
-            
-            // 创建Blob URL
-            const blobUrl = URL.createObjectURL(blob);
-            console.log("✅ 横图旋转完成！Blob URL:", blobUrl);
-            
-            // 缓存处理结果
-            globalImageCache.set(imageUrl, blobUrl);
-            resolve(blobUrl);
-            
-            // 清理canvas引用
-            canvas.width = 0;
-            canvas.height = 0;
-          }, 'image/jpeg', quality);
-          
-        } else {
-          console.log("📱 竖图直接显示，无需处理");
-          // 竖图直接使用原图
-          globalImageCache.set(imageUrl, imageUrl);
-          resolve(imageUrl);
-        }
-      } catch (error) {
-        console.error("❌ 图片处理出错：", error);
-        // 出错时使用原图
-        globalImageCache.set(imageUrl, imageUrl);
-        resolve(imageUrl);
-      }
-    };
-    
-    image.onerror = (error) => {
-      console.error("❌ 图片加载失败：", error);
-      // 失败时使用原图，避免重复尝试
-      globalImageCache.set(imageUrl, imageUrl);
-      resolve(imageUrl);
-    };
-    
-    console.log("📥 设置图片源并开始加载...");
-    image.src = getProxiedImageUrl(imageUrl);
-  });
+  console.log("🚀 开始智能图片处理：", imageUrl);
 
   try {
-    // 使用Promise.race实现超时控制
-    return await Promise.race([processPromise, timeoutPromise]);
-  } catch (error) {
-    console.error("❌ 图片处理失败：", error);
-    
-    // 如果还有重试次数，进行重试
-    if (maxRetries > 0) {
-      console.log(`🔄 重试处理图片，剩余重试次数：${maxRetries - 1}`);
-      return processImageRotation(imageUrl, { 
-        ...options, 
-        maxRetries: maxRetries - 1 
+    // 如果需要自动检测，先获取图片尺寸
+    if (autoRotate) {
+      const image = new window.Image();
+      
+      const imageInfo = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('图片加载超时'));
+        }, 10000);
+        
+        image.onload = () => {
+          clearTimeout(timeout);
+          const w = image.naturalWidth || image.width;
+          const h = image.naturalHeight || image.height;
+          resolve({ width: w, height: h });
+        };
+        
+        image.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('图片加载失败'));
+        };
+        
+        image.src = getProxiedImageUrl(imageUrl);
       });
+      
+      console.log("🖼️ 图片尺寸：", imageInfo.width, "x", imageInfo.height);
+      
+      // 判断是否需要旋转（横图需要旋转为竖图）
+      if (imageInfo.width > imageInfo.height) {
+        console.log("🔄 检测到横图，使用OSS旋转90度");
+        const processedUrl = await processImageWithOSS(imageUrl, {
+          rotation: 90,
+          quality,
+          format
+        });
+        globalImageCache.set(imageUrl, processedUrl);
+        return processedUrl;
+      } else {
+        console.log("📱 竖图无需旋转");
+        globalImageCache.set(imageUrl, imageUrl);
+        return imageUrl;
+      }
+    } else {
+      // 不自动检测，直接返回原图
+      globalImageCache.set(imageUrl, imageUrl);
+      return imageUrl;
     }
     
-    // 重试耗尽，返回原图
+  } catch (error) {
+    console.error("❌ 智能图片处理失败：", error);
+    // 失败时返回原图
     globalImageCache.set(imageUrl, imageUrl);
     return imageUrl;
   }
+};
+
+/**
+ * 🚀 兼容性函数 - 为了保持向后兼容，直接使用OSS处理
+ * @param {string} imageUrl 图片URL
+ * @param {Object} options 配置选项
+ * @returns {Promise<string>} 处理后的图片URL
+ */
+export const processImageRotationLegacy = async (imageUrl, options = {}) => {
+  // 直接使用OSS处理，保持向后兼容
+  return processImageWithOSS(imageUrl, {
+    rotation: 'auto',
+    quality: options.quality || 90,
+    format: options.format || 'jpg'
+  });
 };
 
 /**

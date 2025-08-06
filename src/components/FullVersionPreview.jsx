@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getAspectRatioByName } from '../config/photo';
-import { usePreviewImageProcessor } from '../hooks/useImageProcessor';
+import { getProxiedImageUrl } from '../utils/imageUtils';
 
 /**
  * 满版预览组件
@@ -14,17 +14,50 @@ const FullVersionPreview = memo(({
   size,
   isMobile = false 
 }) => {
-  // 🚀 使用统一的图片处理Hook
-  const {
-    processedImageUrl,
-    isProcessing,
-    error,
-    handleClose: cleanupImage
-  } = usePreviewImageProcessor(imageUrl, visible);
+  const [imageInfo, setImageInfo] = React.useState(null);
+
+  // 获取图片尺寸信息
+  React.useEffect(() => {
+    if (visible && imageUrl) {
+      const getImageInfo = async () => {
+        try {
+          // 获取图片尺寸
+          const imgElement = new window.Image();
+          const info = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('图片加载超时'));
+            }, 10000);
+            
+            imgElement.onload = () => {
+              clearTimeout(timeout);
+              const w = imgElement.naturalWidth || imgElement.width;
+              const h = imgElement.naturalHeight || imgElement.height;
+              resolve({ width: w, height: h });
+            };
+            
+            imgElement.onerror = () => {
+              clearTimeout(timeout);
+              reject(new Error('图片加载失败'));
+            };
+            
+            imgElement.src = getProxiedImageUrl(imageUrl);
+          });
+          
+          console.log('🖼️ 预览图片尺寸:', info.width, "x", info.height);
+          setImageInfo(info);
+        } catch (err) {
+          console.error('获取图片尺寸失败:', err);
+          setImageInfo(null);
+        }
+      };
+      
+      getImageInfo();
+    }
+  }, [visible, imageUrl]);
 
   // 关闭预览时清理状态
   const handleClose = () => {
-    cleanupImage();
+    setImageInfo(null);
     onClose();
   };
 
@@ -57,7 +90,12 @@ const FullVersionPreview = memo(({
   const imageStyle = {
     width: '100%',
     height: '100%',
-    objectFit: 'cover' // 满版必须用cover
+    objectFit: 'cover', // 满版必须用cover
+    // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
+    ...(imageInfo && imageInfo.width > imageInfo.height ? {
+      transform: 'rotate(90deg)',
+      transformOrigin: 'center center',
+    } : {}),
   };
 
   return (
@@ -92,19 +130,11 @@ const FullVersionPreview = memo(({
         <strong>📷 预览说明：</strong>
         <br />
         以下展示的是 {size} 满版相纸的实际打印效果，图片会填满整个相纸区域，无白边。
-        {isProcessing && (
+        {imageInfo && imageInfo.width > imageInfo.height && (
           <>
             <br />
-            <span style={{ color: '#faad14', fontWeight: 'bold' }}>
-              🔄 正在处理图片中...
-            </span>
-          </>
-        )}
-        {error && (
-          <>
-            <br />
-            <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
-              ⚠️ 处理失败: {error}
+            <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
+              🔄 已自动旋转横图为竖图显示
             </span>
           </>
         )}
@@ -119,35 +149,11 @@ const FullVersionPreview = memo(({
         padding: '20px 0'
       }}>
         <div style={photoPreviewStyle}>
-          {isProcessing ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: '#999',
-              fontSize: isMobile ? '12px' : '14px'
-            }}>
-              处理中...
-            </div>
-          ) : processedImageUrl ? (
-            <img 
-              src={processedImageUrl} 
-              alt="预览图片" 
-              style={imageStyle}
-            />
-          ) : (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: '#999',
-              fontSize: isMobile ? '12px' : '14px'
-            }}>
-              图片加载失败
-            </div>
-          )}
+          <img 
+            src={getProxiedImageUrl(imageUrl)} 
+            alt="预览图片" 
+            style={imageStyle}
+          />
         </div>
       </div>
 
