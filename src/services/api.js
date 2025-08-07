@@ -122,7 +122,7 @@ export const getOrderInfo = withErrorBoundary(async (orderSn) => {
 });
 
 // 上传图片（POST请求）
-export const uploadPhoto = withErrorBoundary(async (file) => {
+export const uploadPhoto = withErrorBoundary(async (file, orderSn = '', size = '') => {
   // 检查FormData支持
   if (typeof FormData === 'undefined') {
     throw new Error('您的浏览器不支持文件上传功能，请使用更新版本的浏览器');
@@ -130,6 +130,13 @@ export const uploadPhoto = withErrorBoundary(async (file) => {
 
   const formData = new FormData();
   formData.append('file', file);
+  
+  // 添加prefix参数：{order_sn}/{size}
+  if (orderSn && size) {
+    const prefix = `${orderSn}/${size}`;
+    formData.append('prefix', prefix);
+    console.log('上传文件时添加prefix参数:', prefix);
+  }
 
   const response = await makeRequest(`${API_BASE_URL}/api/upload/oss`, {
     method: 'POST',
@@ -144,7 +151,7 @@ export const uploadPhoto = withErrorBoundary(async (file) => {
 
   const data = await response.json();
   return data;
-}, async (file) => {
+}, async (file, orderSn = '', size = '') => {
   // 错误降级方案
   console.warn('照片上传失败，返回错误信息');
   return {

@@ -29,7 +29,8 @@ const PhotoUploader = memo(({
   onPhotosChange,
   uploadingCount,
   onUploadingCountChange,
-  isMobile = false
+  isMobile = false,
+  orderSn = ''
 }) => {
   // 裁剪相关状态
   const [cropperVisible, setCropperVisible] = useState(false);
@@ -103,8 +104,8 @@ const PhotoUploader = memo(({
       // 更新进度
       onProgress?.({ percent: 30 });
       
-      // 调用API上传照片
-      const response = await uploadPhoto(processedFile);
+      // 调用API上传照片，传递订单号和尺寸参数
+      const response = await uploadPhoto(processedFile, orderSn, size);
       
       // 显示完成进度
       onProgress?.({ percent: 100 });
@@ -285,8 +286,8 @@ const PhotoUploader = memo(({
       // 显示上传中消息
       message.loading('正在上传裁剪后的照片...', 0);
       
-      // 上传裁剪后的照片
-      const response = await uploadPhoto(croppedFile);
+      // 上传裁剪后的照片，传递订单号和尺寸参数
+      const response = await uploadPhoto(croppedFile, orderSn, size);
       
       if (response.code === 0 && response.data) {
         // 获取新的URL

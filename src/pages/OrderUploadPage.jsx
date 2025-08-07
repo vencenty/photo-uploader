@@ -54,7 +54,8 @@ const MemoizedPhotoUploader = memo(({
   onPhotosChange, 
   uploadingCount, 
   onUploadingCountChange, 
-  isMobile 
+  isMobile,
+  orderSn
 }) => (
   <PhotoUploader
     size={size}
@@ -63,6 +64,7 @@ const MemoizedPhotoUploader = memo(({
     uploadingCount={uploadingCount}
     onUploadingCountChange={onUploadingCountChange}
     isMobile={isMobile}
+    orderSn={orderSn}
   />
 ));
 
@@ -935,6 +937,7 @@ function OrderUploadPage() {
                   uploadingCount={uploadingPhotosBySize[size] || 0}
                   onUploadingCountChange={uploadCountHandlers[size]}
                   isMobile={isMobile}
+                  orderSn={orderInfo.order_sn}
                 />
               </div>
             ))}
