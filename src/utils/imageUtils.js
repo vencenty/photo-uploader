@@ -8,6 +8,7 @@
 export const getProxiedImageUrl = (imageUrl) => {
   if (!imageUrl) return '';
   
+  console.log("fgggggg imageurl", imageUrl)
   // 如果是开发环境，使用代理
   if (import.meta.env.DEV) {
     // 检查是否是edge.vencenty.cc的图片
