@@ -1,5 +1,24 @@
 // 图片处理工具函数
 
+// 调试工具
+const debugLog = (...args) => {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+};
+
+const debugWarn = (...args) => {
+  if (import.meta.env.DEV) {
+    console.warn(...args);
+  }
+};
+
+const debugError = (...args) => {
+  if (import.meta.env.DEV) {
+    console.error(...args);
+  }
+};
+
 /**
  * 将远程图片URL转换为本地代理URL（仅在开发环境）
  * @param {string} imageUrl 原始图片URL
@@ -41,18 +60,18 @@ export const createImageWithProxy = (url, useCrossOrigin = false) => {
 
     image.addEventListener('load', () => {
       clearTimeout(timeout);
-      console.log('图片加载成功:', url);
+                debugLog('图片加载成功:', url);
       resolve(image);
     });
 
     image.addEventListener('error', (error) => {
       clearTimeout(timeout);
-      console.error('图片加载失败:', url, error);
+      debugError('图片加载失败:', url, error);
       
       // 如果是代理URL失败，尝试使用原始URL
       if (url.startsWith('/user-photos/')) {
         const originalUrl = `https://edge.vencenty.cc${url}`;
-        console.log('代理加载失败，尝试直接加载:', originalUrl);
+        debugLog('代理加载失败，尝试直接加载:', originalUrl);
         
         // 递归调用，但不使用跨域
         createImageWithProxy(originalUrl, false)
@@ -69,13 +88,13 @@ export const createImageWithProxy = (url, useCrossOrigin = false) => {
       try {
         image.setAttribute('crossOrigin', 'anonymous');
       } catch (e) {
-        console.log('跨域设置失败，继续加载');
+        debugLog('跨域设置失败，继续加载');
       }
     }
 
     // 使用代理URL
     const proxiedUrl = getProxiedImageUrl(url);
-    console.log('加载图片:', proxiedUrl);
+    debugLog('加载图片:', proxiedUrl);
     image.src = proxiedUrl;
   });
 };

@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getAspectRatioByName } from '../config/photo';
 import { getProxiedImageUrl } from '../utils/imageUtils';
+import { debugInfo, debugSuccess, debugWarning, debugError } from '../utils/debug';
 
 
 /**
@@ -31,7 +32,7 @@ const WhiteBorderPreview = memo(({
           try {
             imgElement.crossOrigin = 'anonymous';
           } catch (e) {
-            console.log('设置跨域属性失败，继续加载');
+            debugInfo('设置跨域属性失败，继续加载');
           }
           
           const info = await new Promise((resolve, reject) => {
@@ -54,9 +55,9 @@ const WhiteBorderPreview = memo(({
             imgElement.src = getProxiedImageUrl(imageUrl);
           });
           
-          console.log('🖼️ 留白预览图片尺寸:', info.width, "x", info.height);
-          console.log('🔄 是否需要旋转:', info.height < info.width);
-          console.log('🖼️ 图片URL:', getProxiedImageUrl(imageUrl));
+          debugInfo('留白预览图片尺寸', info.width, "x", info.height);
+          debugInfo('是否需要旋转', info.height < info.width);
+          debugInfo('图片URL', getProxiedImageUrl(imageUrl));
           setImageInfo(info);
 
           // 🎯 使用 Canvas 处理图片旋转，参考 photo-preview.html
@@ -73,10 +74,10 @@ const WhiteBorderPreview = memo(({
               ctx.drawImage(imgElement, -info.width / 2, -info.height / 2);
               
               const processedUrl = canvas.toDataURL('image/jpeg', 0.9);
-              console.log('🔄 图片已通过 Canvas 旋转处理');
+              debugSuccess('图片已通过 Canvas 旋转处理');
               setProcessedImageUrl(processedUrl);
             } catch (canvasError) {
-              console.warn('Canvas 处理失败，使用 CSS transform 作为备选方案:', canvasError);
+              debugWarning('Canvas 处理失败，使用 CSS transform 作为备选方案', canvasError);
               // 如果 Canvas 处理失败（通常是跨域问题），回退到 CSS transform
               setProcessedImageUrl(getProxiedImageUrl(imageUrl));
               setUseCssTransform(true);
@@ -86,7 +87,7 @@ const WhiteBorderPreview = memo(({
             setProcessedImageUrl(getProxiedImageUrl(imageUrl));
           }
         } catch (err) {
-          console.error('处理图片失败:', err);
+          debugError('处理图片失败', err);
           setImageInfo(null);
           setProcessedImageUrl(null);
         }

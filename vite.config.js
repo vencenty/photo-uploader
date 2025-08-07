@@ -46,7 +46,14 @@ export default defineConfig(({ command, mode }) => {
             utils: ['uuid', 'core-js']
           }
         }
-      }
+      },
+      // 生产环境移除 console 语句
+      terserOptions: {
+        compress: {
+          drop_console: true,  // 移除 console.log
+          drop_debugger: true, // 移除 debugger
+        },
+      },
     },
     define: {
       global: 'globalThis',

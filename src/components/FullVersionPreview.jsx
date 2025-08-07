@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getAspectRatioByName } from '../config/photo';
 import { getProxiedImageUrl } from '../utils/imageUtils';
+import { debugInfo } from '../utils/debug';
 
 /**
  * 满版预览组件
@@ -43,7 +44,7 @@ const FullVersionPreview = memo(({
             imgElement.src = getProxiedImageUrl(imageUrl);
           });
           
-          console.log('🖼️ 预览图片尺寸:', info.width, "x", info.height);
+          debugInfo('预览图片尺寸', info.width, "x", info.height);
           setImageInfo(info);
         } catch (err) {
           console.error('获取图片尺寸失败:', err);
