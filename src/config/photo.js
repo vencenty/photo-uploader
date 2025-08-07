@@ -11,16 +11,16 @@ export const PHOTO = [
       "aspectRatio": 5/7,
       "recommendResize": true,
     },
-    // {
-    //   "name": "3寸-正方形",
-    //   "aspectRatio": 1/1.0001,
-    //   "recommendResize": true,
-    // },
-    // {
-    // "name": "3寸-拍立得",
-    // "aspectRatio": 64/55.4,
-    // "recommendResize": true,
-    // },
+    {
+      "name": "3寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "3寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
     {
       "name": "4寸-留白",
       "aspectRatio": 3/4,
@@ -41,12 +41,6 @@ export const PHOTO = [
       "aspectRatio": 7/10,
       "recommendResize": false
     },
-
-    // {
-    //   "name": "5寸-拍立得",
-    //   "aspectRatio": 76/102,
-    //   "recommendResize": true
-    // },
     {
       "name": "大5寸-满版",
       "aspectRatio": 4/3,
