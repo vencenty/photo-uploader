@@ -98,6 +98,25 @@ export default defineConfig(({ command, mode }) => {
               console.error(`❌ API代理错误: ${err.message}`);
             });
           }
+        },
+        // 新增：代理OSS图片，解决CORS问题
+        '/oss-proxy': {
+          target: 'https://oss-proxy.vencenty.cc',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/oss-proxy/, ''),
+          configure: (proxy, options) => {
+            console.log('🔗 OSS代理已配置: https://oss-proxy.vencenty.cc');
+            proxy.on('proxyReq', (proxyReq, req, res) => {
+              console.log(`📤 OSS请求: ${req.method} ${req.url}`);
+            });
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              console.log(`📥 OSS响应: ${proxyRes.statusCode} ${req.url}`);
+            });
+            proxy.on('error', (err, req, res) => {
+              console.error(`❌ OSS代理错误: ${err.message}`);
+            });
+          }
         }
       }
     },
