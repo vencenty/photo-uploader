@@ -1180,7 +1180,7 @@ function OrderUploadPage() {
               );
             })}
             
-            <div style={{ 
+            {/* <div style={{ 
               background: '#fff7e6', 
               border: '1px solid #ffd591', 
               borderRadius: '6px', 
@@ -1193,7 +1193,7 @@ function OrderUploadPage() {
                 • 如果您只是想重新选择照片，建议先删除单个照片再重新上传<br/>
                 • 确认删除后，相关的所有照片和设置都将被清除
               </Text>
-            </div>
+            </div> */}
           </div>
         </Modal>
 
