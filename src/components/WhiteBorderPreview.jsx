@@ -61,7 +61,11 @@ const WhiteBorderPreview = memo(({
           setImageInfo(info);
 
           // 🎯 使用 Canvas 处理图片旋转，参考 photo-preview.html
-          if (info.height < info.width) {
+          // 对于正方形相纸，不需要旋转图片
+          const aspectRatio = getAspectRatioByName(size);
+          const isSquare = Math.abs(aspectRatio - 1) < 0.01;
+          
+          if (!isSquare && info.height < info.width) {
             // 横图需要旋转为竖图
             try {
               const canvas = document.createElement('canvas');
@@ -83,7 +87,7 @@ const WhiteBorderPreview = memo(({
               setUseCssTransform(true);
             }
           } else {
-            // 竖图直接使用原图
+            // 竖图或正方形相纸直接使用原图
             setProcessedImageUrl(getProxiedImageUrl(imageUrl));
           }
         } catch (err) {
@@ -107,7 +111,14 @@ const WhiteBorderPreview = memo(({
 
   // 相纸样式 - 参考 photo-preview.html，固定为竖向相纸
   const photoPreviewStyle = {
-    padding: '3mm',  // 增加padding，确保留白效果更明显
+    padding: (() => {
+      const aspectRatio = getAspectRatioByName(size);
+      // 对于正方形，使用更均匀的padding
+      if (Math.abs(aspectRatio - 1) < 0.01) {
+        return '4mm';
+      }
+      return '3mm';
+    })(),
     background: 'white',
     boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
     border: '1px solid #ccc',
@@ -115,7 +126,18 @@ const WhiteBorderPreview = memo(({
     // 根据相纸尺寸的宽高比计算实际预览尺寸
     ...(() => {
       const aspectRatio = getAspectRatioByName(size);
-      // 设置基准高度，然后根据宽高比计算宽度
+      
+      // 对于正方形，使用固定的正方形尺寸
+      if (Math.abs(aspectRatio - 1) < 0.01) {
+        const squareSize = isMobile ? 300 : 380;
+        debugInfo('正方形相纸尺寸', `${squareSize}px x ${squareSize}px`);
+        return {
+          width: `${squareSize}px`,
+          height: `${squareSize}px`
+        };
+      }
+      
+      // 对于其他比例，设置基准高度，然后根据宽高比计算宽度
       const baseHeight = isMobile ? 340 : 425;
       const calculatedWidth = baseHeight * aspectRatio;
       
