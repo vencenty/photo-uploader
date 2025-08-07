@@ -98,7 +98,7 @@ export default defineConfig(({ command, mode }) => {
               console.error(`❌ API代理错误: ${err.message}`);
             });
           }
-        },
+         },
         // 新增：代理OSS图片，解决CORS问题
         '/oss-proxy': {
           target: 'https://oss-proxy.vencenty.cc',

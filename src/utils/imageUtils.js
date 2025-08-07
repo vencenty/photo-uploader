@@ -27,7 +27,7 @@ const debugError = (...args) => {
 export const getProxiedImageUrl = (imageUrl) => {
   if (!imageUrl) return '';
   
-  console.log("fgggggg imageurl", imageUrl)
+  console.log("🔄 处理图片URL:", imageUrl);
   // 如果是开发环境，使用代理
   if (import.meta.env.DEV) {
     // 检查是否是edge.vencenty.cc的图片
@@ -35,6 +35,13 @@ export const getProxiedImageUrl = (imageUrl) => {
       // 将远程URL转换为本地代理URL
       const pathPart = imageUrl.replace('https://edge.vencenty.cc/', '');
       return `/${pathPart}`;
+    }
+    
+    // 检查是否是oss-proxy.vencenty.cc的图片
+    if (imageUrl.includes('oss-proxy.vencenty.cc/')) {
+      // 将远程URL转换为本地代理URL
+      const pathPart = imageUrl.replace('https://oss-proxy.vencenty.cc/', '');
+      return `/oss-proxy/${pathPart}`;
     }
   }
   
@@ -450,4 +457,275 @@ export const revokeBlobUrl = (url) => {
       console.warn('释放Blob URL失败:', e);
     }
   }
-}; 
+};
+
+/**
+ * 移动端专用的图片加载函数
+ * @param {string} imageUrl 图片URL
+ * @param {boolean} useCrossOrigin 是否使用跨域（裁剪时需要）
+ * @returns {Promise<HTMLImageElement>}
+ */
+export const createMobileImage = (imageUrl, useCrossOrigin = false) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      console.error('移动端图片加载超时:', imageUrl);
+      reject(new Error('移动端图片加载超时'));
+    }, 20000); // 移动端给更长的超时时间
+
+    const image = new window.Image();
+    
+    // 移动端也需要设置跨域，特别是裁剪时
+    if (useCrossOrigin) {
+      try {
+        image.crossOrigin = 'anonymous';
+      } catch (e) {
+        debugLog('移动端跨域设置失败，继续加载');
+      }
+    }
+    
+    image.addEventListener('load', () => {
+      clearTimeout(timeout);
+      debugLog('移动端图片加载成功:', imageUrl);
+      resolve(image);
+    });
+
+    image.addEventListener('error', (error) => {
+      clearTimeout(timeout);
+      debugError('移动端图片加载失败:', imageUrl, error);
+      reject(new Error('移动端图片加载失败'));
+    });
+
+    image.src = imageUrl;
+  });
+};
+
+/**
+ * 移动端图片加载的多重降级策略
+ * @param {string} imageUrl 图片URL
+ * @param {boolean} useCrossOrigin 是否使用跨域（裁剪时需要）
+ * @returns {Promise<HTMLImageElement>}
+ */
+export const createMobileImageWithFallback = async (imageUrl, useCrossOrigin = false) => {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (!isMobile) {
+    // 非移动端使用原有逻辑
+    return createImageWithProxy(imageUrl, useCrossOrigin);
+  }
+
+  // 移动端多重降级策略
+  const strategies = [
+    // 策略1: 直接加载原始URL（带跨域）
+    () => createMobileImage(imageUrl, useCrossOrigin),
+    
+    // 策略2: 尝试添加时间戳避免缓存问题
+    () => createMobileImage(`${imageUrl}${imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`, useCrossOrigin),
+    
+    // 策略3: 如果是HTTPS页面，尝试HTTP URL
+    () => {
+      if (window.location.protocol === 'https:' && imageUrl.startsWith('https:')) {
+        const httpUrl = imageUrl.replace('https:', 'http:');
+        return createMobileImage(httpUrl, useCrossOrigin);
+      }
+      throw new Error('跳过HTTP策略');
+    },
+    
+    // 策略4: 如果是HTTP页面，尝试HTTPS URL
+    () => {
+      if (window.location.protocol === 'http:' && imageUrl.startsWith('http:')) {
+        const httpsUrl = imageUrl.replace('http:', 'https:');
+        return createMobileImage(httpsUrl, useCrossOrigin);
+      }
+      throw new Error('跳过HTTPS策略');
+    },
+    
+    // 策略5: 尝试通过代理加载（如果可用）
+    () => {
+      if (import.meta.env.DEV) {
+        const proxyUrl = imageUrl.replace('https://edge.vencenty.cc/', '/');
+        return createMobileImage(proxyUrl, useCrossOrigin);
+      }
+      throw new Error('生产环境跳过代理策略');
+    },
+    
+    // 策略6: 尝试通过代理加载（如果可用）
+    () => {
+      if (import.meta.env.DEV) {
+        const proxyUrl = imageUrl.replace('https://oss-proxy.vencenty.cc/', '/oss-proxy/');
+        return createMobileImage(proxyUrl, useCrossOrigin);
+      }
+      throw new Error('生产环境跳过代理策略');
+    }
+  ];
+
+  let lastError = null;
+  
+  for (let i = 0; i < strategies.length; i++) {
+    try {
+      debugLog(`移动端图片加载策略 ${i + 1}:`, imageUrl);
+      const result = await strategies[i]();
+      debugLog(`移动端图片加载策略 ${i + 1} 成功:`, imageUrl);
+      return result;
+    } catch (error) {
+      lastError = error;
+      debugWarn(`移动端图片加载策略 ${i + 1} 失败:`, imageUrl, error.message);
+      
+      // 如果不是最后一个策略，继续尝试下一个
+      if (i < strategies.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒再尝试下一个策略
+      }
+    }
+  }
+  
+  // 所有策略都失败了
+  throw new Error(`移动端图片加载失败，已尝试 ${strategies.length} 种策略: ${lastError?.message || '未知错误'}`);
+};
+
+/**
+ * 🚀 CORS绕过方案 - 将图片转换为Blob URL
+ * @param {string} imageUrl 图片URL
+ * @returns {Promise<string>} Blob URL
+ */
+export const createBlobUrlForMobile = async (imageUrl) => {
+  try {
+    console.log('🔄 CORS绕过：开始转换图片为Blob URL:', imageUrl);
+    
+    // 多重尝试策略
+    const strategies = [
+      // 策略1: 直接fetch
+      async () => {
+        const response = await fetch(imageUrl, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.blob();
+      },
+      
+      // 策略2: 使用代理URL（开发环境）
+      async () => {
+        if (import.meta.env.DEV) {
+          const proxyUrl = getProxiedImageUrl(imageUrl);
+          if (proxyUrl !== imageUrl) {
+            console.log('🔄 尝试代理URL:', proxyUrl);
+            const response = await fetch(proxyUrl, {
+              mode: 'cors',
+              credentials: 'omit'
+            });
+            
+            if (!response.ok) {
+              throw new Error(`代理HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.blob();
+          }
+        }
+        throw new Error('跳过代理策略');
+      },
+      
+      // 策略3: 使用XMLHttpRequest（某些情况下更可靠）
+      async () => {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', imageUrl, true);
+          xhr.responseType = 'blob';
+          
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              resolve(xhr.response);
+            } else {
+              reject(new Error(`XHR ${xhr.status}: ${xhr.statusText}`));
+            }
+          };
+          
+          xhr.onerror = () => {
+            reject(new Error('XHR请求失败'));
+          };
+          
+          xhr.send();
+        });
+      }
+    ];
+
+    let lastError = null;
+    
+    for (let i = 0; i < strategies.length; i++) {
+      try {
+        console.log(`🔄 尝试CORS绕过策略 ${i + 1}:`, imageUrl);
+        const blob = await strategies[i]();
+        
+        // 创建Blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        
+        console.log('✅ CORS绕过成功，创建Blob URL:', blobUrl);
+        
+        // 将Blob URL添加到缓存，以便后续清理
+        if (globalImageCache) {
+          globalImageCache.set(imageUrl, blobUrl);
+        }
+        
+        return blobUrl;
+        
+      } catch (error) {
+        lastError = error;
+        console.warn(`❌ CORS绕过策略 ${i + 1} 失败:`, error.message);
+        
+        // 如果不是最后一个策略，继续尝试下一个
+        if (i < strategies.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 等待500ms再尝试下一个策略
+        }
+      }
+    }
+    
+    // 所有策略都失败了
+    throw new Error(`CORS绕过失败，已尝试 ${strategies.length} 种策略: ${lastError?.message || '未知错误'}`);
+    
+  } catch (error) {
+    console.error('❌ CORS绕过完全失败:', error);
+    throw error; // 不再回退到原URL，直接抛出错误
+  }
+};
+
+/**
+ * 🚀 裁剪专用图片加载 - 强制使用CORS绕过避免Canvas污染
+ * @param {string} imageUrl 图片URL
+ * @returns {Promise<HTMLImageElement>}
+ */
+export const createMobileImageForCrop = async (imageUrl) => {
+  try {
+    console.log('🔄 开始CORS绕过处理:', imageUrl);
+    
+    // 强制使用CORS绕过，避免Canvas污染
+    const blobUrl = await createBlobUrlForMobile(imageUrl);
+    
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('裁剪图片加载超时'));
+      }, 20000);
+
+      const image = new window.Image();
+      
+      image.addEventListener('load', () => {
+        clearTimeout(timeout);
+        console.log('✅ 裁剪图片加载成功:', blobUrl);
+        resolve(image);
+      });
+
+      image.addEventListener('error', (error) => {
+        clearTimeout(timeout);
+        console.error('❌ 裁剪图片加载失败:', blobUrl, error);
+        reject(new Error('裁剪图片加载失败'));
+      });
+
+      image.src = blobUrl;
+    });
+    
+  } catch (error) {
+    console.error('❌ 裁剪图片处理失败:', error);
+    throw error;
+  }
+};

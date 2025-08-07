@@ -3,7 +3,7 @@ import { Modal, Button, message } from 'antd';
 import { SwapOutlined } from '@ant-design/icons';
 import ReactCrop from 'react-easy-crop';
 import styled from 'styled-components';
-import { createImageWithProxy, getProxiedImageUrl } from '../utils/imageUtils';
+import { createImageWithProxy, getProxiedImageUrl, createMobileImageForCrop } from '../utils/imageUtils';
 
 const StyledCropContainer = styled.div`
   position: relative;
@@ -444,7 +444,10 @@ ImageCropper.displayName = 'ImageCropper';
  */
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   console.log('开始加载图片:', imageSrc);
-  const image = await createImageWithProxy(imageSrc, true);
+  
+  // 强制使用CORS绕过方案，避免Canvas污染
+  const image = await createMobileImageForCrop(imageSrc);
+  
   console.log('图片加载完成:', image.width, 'x', image.height);
 
   const canvas = document.createElement('canvas');
