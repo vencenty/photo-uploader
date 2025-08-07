@@ -174,7 +174,8 @@ const PhotoItem = React.memo(({
     border: isWhiteBorder ? '1px solid #e6e6e6' : 'none',
     boxShadow: isWhiteBorder ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
     // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
-    ...(imageInfo && imageInfo.width > imageInfo.height ? {
+    // 注意：这里使用 height < width 的判断，与原始逻辑一致
+    ...(imageInfo && imageInfo.height < imageInfo.width ? {
       transform: 'rotate(90deg)',
       transformOrigin: 'center center',
       // 调整尺寸以适应旋转后的图片

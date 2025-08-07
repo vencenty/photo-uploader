@@ -94,7 +94,8 @@ const WhiteBorderPreview = memo(({
     maxHeight: '100%',
     objectFit: 'contain',
     // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
-    ...(imageInfo && imageInfo.width > imageInfo.height ? {
+    // 注意：这里使用 height < width 的判断，与原始逻辑一致
+    ...(imageInfo && imageInfo.height < imageInfo.width ? {
       transform: 'rotate(90deg)',
       transformOrigin: 'center center',
     } : {}),
@@ -134,7 +135,7 @@ const WhiteBorderPreview = memo(({
         <strong>📷 预览说明：</strong>
         <br />
         以下展示的是 {size} 留白相纸的实际打印效果，所有图片已自动调整为竖向显示，四周保留白边。
-        {imageInfo && imageInfo.width > imageInfo.height && (
+        {imageInfo && imageInfo.height < imageInfo.width && (
           <>
             <br />
             <span style={{ color: '#52c41a', fontWeight: 'bold' }}>

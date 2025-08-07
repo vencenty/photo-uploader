@@ -92,7 +92,8 @@ const FullVersionPreview = memo(({
     height: '100%',
     objectFit: 'cover', // 满版必须用cover
     // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
-    ...(imageInfo && imageInfo.width > imageInfo.height ? {
+    // 注意：这里使用 height < width 的判断，与原始逻辑一致
+    ...(imageInfo && imageInfo.height < imageInfo.width ? {
       transform: 'rotate(90deg)',
       transformOrigin: 'center center',
     } : {}),
@@ -130,7 +131,7 @@ const FullVersionPreview = memo(({
         <strong>📷 预览说明：</strong>
         <br />
         以下展示的是 {size} 满版相纸的实际打印效果，图片会填满整个相纸区域，无白边。
-        {imageInfo && imageInfo.width > imageInfo.height && (
+        {imageInfo && imageInfo.height < imageInfo.width && (
           <>
             <br />
             <span style={{ color: '#52c41a', fontWeight: 'bold' }}>
