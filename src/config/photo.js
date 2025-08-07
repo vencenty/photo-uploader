@@ -12,16 +12,6 @@ export const PHOTO = [
       "recommendResize": true,
     },
     {
-      "name": "3寸-留白-正方形",
-      "aspectRatio": 1/1.0001,
-      "recommendResize": true,
-    },
-    {
-      "name": "3寸-满版-正方形",
-      "aspectRatio": 1/1.0001,
-      "recommendResize": true,
-    },
-    {
       "name": "4寸-留白",
       "aspectRatio": 3/4,
       "recommendResize": false
@@ -108,7 +98,58 @@ export const PHOTO = [
     {
       "name": "A4-留白",
       "aspectRatio": 1/1.414
-    }
+    },
+
+    {
+      "name": "3寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "3寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "4寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "4寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "5寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "5寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "6寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "6寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "8寸-留白-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
+    {
+      "name": "8寸-满版-正方形",
+      "aspectRatio": 1/1.0001,
+      "recommendResize": true,
+    },
   ]
 
 // 获取所有尺寸选项名称，用于尺寸选择
