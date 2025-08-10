@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Modal, Button } from 'antd';
 import { getAspectRatioByName } from '../config/photo';
 import { getProxiedImageUrl } from '../utils/imageUtils';
-import { debugInfo } from '../utils/debug';
+import { debugInfo, debugSuccess, debugWarning, debugError } from '../utils/debug';
 
 /**
  * 满版预览组件
@@ -16,49 +16,85 @@ const FullVersionPreview = memo(({
   isMobile = false 
 }) => {
   const [imageInfo, setImageInfo] = React.useState(null);
+  const [processedImageUrl, setProcessedImageUrl] = React.useState(null);
+  const [useCssTransform, setUseCssTransform] = React.useState(false);
 
   // 获取图片尺寸信息
   React.useEffect(() => {
     if (visible && imageUrl) {
-      const getImageInfo = async () => {
+      const processImage = async () => {
         try {
           // 获取图片尺寸
           const imgElement = new window.Image();
+          try {
+            imgElement.crossOrigin = 'anonymous';
+          } catch (e) {
+            debugInfo('设置跨域属性失败，继续加载');
+          }
+
           const info = await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error('图片加载超时'));
-            }, 10000);
-            
+            const timeout = setTimeout(() => reject(new Error('图片加载超时')), 10000);
             imgElement.onload = () => {
               clearTimeout(timeout);
               const w = imgElement.naturalWidth || imgElement.width;
               const h = imgElement.naturalHeight || imgElement.height;
               resolve({ width: w, height: h });
             };
-            
             imgElement.onerror = () => {
               clearTimeout(timeout);
               reject(new Error('图片加载失败'));
             };
-            
             imgElement.src = getProxiedImageUrl(imageUrl);
           });
-          
-          debugInfo('预览图片尺寸', info.width, "x", info.height);
+
+          debugInfo('满版预览图片尺寸', info.width, 'x', info.height);
           setImageInfo(info);
+
+          // 正方形相纸不做旋转
+          const aspectRatio = getAspectRatioByName(size);
+          const isSquare = Math.abs(aspectRatio - 1) < 0.01;
+
+          if (!isSquare && info.height < info.width) {
+            // 横图 → 竖图：优先使用 Canvas 实旋转
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = info.height;
+              canvas.height = info.width;
+              const ctx = canvas.getContext('2d');
+              ctx.translate(canvas.width / 2, canvas.height / 2);
+              ctx.rotate(Math.PI / 2);
+              ctx.drawImage(imgElement, -info.width / 2, -info.height / 2);
+              const processedUrl = canvas.toDataURL('image/jpeg', 0.9);
+              debugSuccess('满版预览：图片已通过 Canvas 旋转处理');
+              setProcessedImageUrl(processedUrl);
+              setUseCssTransform(false);
+            } catch (canvasError) {
+              debugWarning('满版预览：Canvas 处理失败，使用 CSS transform 作为备选方案', canvasError);
+              setProcessedImageUrl(getProxiedImageUrl(imageUrl));
+              setUseCssTransform(true);
+            }
+          } else {
+            // 竖图或正方形
+            setProcessedImageUrl(getProxiedImageUrl(imageUrl));
+            setUseCssTransform(false);
+          }
         } catch (err) {
-          console.error('获取图片尺寸失败:', err);
+          debugError('满版预览处理图片失败', err);
           setImageInfo(null);
+          setProcessedImageUrl(null);
+          setUseCssTransform(false);
         }
       };
-      
-      getImageInfo();
+
+      processImage();
     }
-  }, [visible, imageUrl]);
+  }, [visible, imageUrl, size]);
 
   // 关闭预览时清理状态
   const handleClose = () => {
     setImageInfo(null);
+    setProcessedImageUrl(null);
+    setUseCssTransform(false);
     onClose();
   };
 
@@ -92,9 +128,8 @@ const FullVersionPreview = memo(({
     width: '100%',
     height: '100%',
     objectFit: 'cover', // 满版必须用cover
-    // 🚀 CSS transform旋转 - 如果宽>高，旋转90度
-    // 注意：这里使用 height < width 的判断，与原始逻辑一致
-    ...(imageInfo && imageInfo.height < imageInfo.width ? {
+    // 如果 Canvas 失败，使用 CSS transform 旋转
+    ...(useCssTransform && imageInfo && imageInfo.height < imageInfo.width ? {
       transform: 'rotate(90deg)',
       transformOrigin: 'center center',
     } : {}),
@@ -151,11 +186,24 @@ const FullVersionPreview = memo(({
         padding: '20px 0'
       }}>
         <div style={photoPreviewStyle}>
-          <img 
-            src={getProxiedImageUrl(imageUrl)} 
-            alt="预览图片" 
-            style={imageStyle}
-          />
+          {processedImageUrl ? (
+            <img
+              src={processedImageUrl}
+              alt="预览图片"
+              style={imageStyle}
+            />
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: '#999',
+              fontSize: '14px'
+            }}>
+              加载中...
+            </div>
+          )}
         </div>
       </div>
 
