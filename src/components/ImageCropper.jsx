@@ -450,47 +450,98 @@ const getCroppedImg = async (imageSrc, pixelCrop) => {
   
   console.log('图片加载完成:', image.width, 'x', image.height);
 
+  // 安全化裁剪区域（取整、最小值约束、防越界）
+  const safeCrop = {
+    x: Math.max(0, Math.floor(Number(pixelCrop.x) || 0)),
+    y: Math.max(0, Math.floor(Number(pixelCrop.y) || 0)),
+    width: Math.max(1, Math.floor(Number(pixelCrop.width) || 0)),
+    height: Math.max(1, Math.floor(Number(pixelCrop.height) || 0))
+  };
+
+  // 防止画布过大导致移动端内存崩溃（约束最大像素数）
+  // 常见安全阈值：iOS/Safari 等在 ~16M 像素附近容易失败
+  const MAX_CANVAS_PIXELS = 16 * 1024 * 1024; // 16,777,216
+  let targetWidth = safeCrop.width;
+  let targetHeight = safeCrop.height;
+  const totalPixels = targetWidth * targetHeight;
+  if (totalPixels > MAX_CANVAS_PIXELS) {
+    const scale = Math.sqrt(MAX_CANVAS_PIXELS / totalPixels);
+    targetWidth = Math.max(1, Math.floor(targetWidth * scale));
+    targetHeight = Math.max(1, Math.floor(targetHeight * scale));
+    console.warn('裁剪区域过大，按比例缩放以避免内存问题:', {
+      original: { w: safeCrop.width, h: safeCrop.height },
+      scaled: { w: targetWidth, h: targetHeight },
+      scale
+    });
+  }
+
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
   // 设置画布大小为裁剪的尺寸
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   console.log('画布尺寸:', canvas.width, 'x', canvas.height);
 
   // 绘制裁剪的图像区域
   ctx.drawImage(
     image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
+    safeCrop.x,
+    safeCrop.y,
+    safeCrop.width,
+    safeCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    targetWidth,
+    targetHeight
   );
   console.log('图像绘制完成');
 
-  // 将画布转换为blob，添加超时处理
-  return new Promise((resolve, reject) => {
-    // 设置10秒超时
-    const timeout = setTimeout(() => {
-      console.error('canvas.toBlob 超时');
-      reject(new Error('图片处理超时'));
-    }, 10000);
+  // 将画布转换为 Blob，带兜底：toBlob 返回 null 或不支持时，使用 dataURL → Blob
+  const canvasToBlobWithFallback = (cnv, type = 'image/jpeg', quality = 0.95, timeoutMs = 10000) => {
+    return new Promise((resolve, reject) => {
+      // 先尝试原生 toBlob
+      try {
+        if (typeof cnv.toBlob === 'function') {
+          const timer = setTimeout(() => {
+            console.error('canvas.toBlob 超时');
+            reject(new Error('图片处理超时'));
+          }, timeoutMs);
 
-    canvas.toBlob((blob) => {
-      clearTimeout(timeout);
-      if (blob) {
-        console.log('Blob创建成功:', blob.size, 'bytes');
-        resolve(blob);
-      } else {
-        console.error('Blob创建失败');
+          cnv.toBlob(async (blob) => {
+            clearTimeout(timer);
+            if (blob) {
+              console.log('Blob创建成功:', blob.size, 'bytes');
+              resolve(blob);
+            } else {
+              console.warn('toBlob 返回 null，切换到 dataURL 兜底');
+              try {
+                const dataUrl = cnv.toDataURL(type, quality);
+                const resp = await fetch(dataUrl);
+                const fallbackBlob = await resp.blob();
+                resolve(fallbackBlob);
+              } catch (e) {
+                reject(new Error('无法创建图片文件'));
+              }
+            }
+          }, type, quality);
+          return;
+        }
+      } catch (e) {
+        console.warn('调用 toBlob 失败，使用 dataURL 兜底');
+      }
+
+      // 没有 toBlob，或前面出错，使用 dataURL 方案
+      try {
+        const dataUrl = cnv.toDataURL(type, quality);
+        fetch(dataUrl).then(r => r.blob()).then(resolve).catch(() => reject(new Error('无法创建图片文件')));
+      } catch (e) {
         reject(new Error('无法创建图片文件'));
       }
-    }, 'image/jpeg', 0.95);
-  });
+    });
+  };
+
+  return canvasToBlobWithFallback(canvas, 'image/jpeg', 0.95, 10000);
 };
 
 

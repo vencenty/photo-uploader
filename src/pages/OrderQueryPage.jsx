@@ -43,10 +43,10 @@ function OrderQueryPage() {
       // 根据查询结果处理
       if (response.data) {
         // 有订单记录，带上订单信息跳转
-        message.success('查询到订单信息');
+        message.success({ content: '查询到订单信息', key: 'order-load-success' });
       } else {
         // 没有订单记录，仅带订单号跳转
-        message.info('未查询到订单信息，将创建新订单');
+        message.info({ content: '未查询到订单信息，将创建新订单', key: 'order-load-info' });
       }
       
       // 查询成功时跳转到上传页面

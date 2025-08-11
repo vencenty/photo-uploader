@@ -98,7 +98,7 @@ const PhotoUploader = memo(({
       // 检查是否需要压缩
       const needCompression = isCompressionNeeded(file);
       
-      // 处理并压缩图片
+      // 处理并压缩图片（含 HEIC/HEIF 转换）
       const processedFile = await processImageBeforeUpload(file);
       
       // 更新进度
@@ -174,8 +174,10 @@ const PhotoUploader = memo(({
   
   // 在上传前验证照片
   const beforeUpload = (file) => {
-    // 确保文件是图片类型
-    const isImage = file.type.startsWith('image/');
+    // 确保文件是图片类型（包含 HEIC/HEIF 情况：有些浏览器 file.type 可能为空，允许扩展名判断）
+    const lowerName = (file.name || '').toLowerCase();
+    const isHeic = lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+    const isImage = isHeic || (file.type && file.type.startsWith('image/'));
     if (!isImage) {
       message.error(`${file.name} 不是有效的图片文件`);
       return Upload.LIST_IGNORE;
@@ -403,6 +405,8 @@ const PhotoUploader = memo(({
   // 判断是否为满版款式
   const isFullVersionSize = !isWhiteBorderSize; // 非留白的都是满版
   
+  // 移除组件内的自动保存 UI，改由页面级控制
+
   // 处理预览照片
   const handlePreviewPhoto = useCallback((photo) => {
     // 检查是否正在上传
@@ -474,7 +478,7 @@ const PhotoUploader = memo(({
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
         <Upload
           listType="picture-card"
-          accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+          accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
           multiple={true}
           directory={false}
           customRequest={customRequest}

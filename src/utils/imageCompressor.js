@@ -3,6 +3,35 @@
  */
 import { uploadConfig } from '../config/app.config';
 
+// 检测是否为 HEIC/HEIF 文件
+const isHeicLike = (file) => {
+  if (!file) return false;
+  const type = (file.type || '').toLowerCase();
+  const name = (file.name || '').toLowerCase();
+  return (
+    type === 'image/heic' ||
+    type === 'image/heif' ||
+    name.endsWith('.heic') ||
+    name.endsWith('.heif')
+  );
+};
+
+// 将 HEIC/HEIF 转换为 JPEG（优先在客户端转换，提升兼容性）
+const convertHeicToJpeg = async (file) => {
+  try {
+    // 动态加载，避免默认打包体积
+    const heic2any = (await import('heic2any')).default || (await import('heic2any'));
+    const output = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+    const blob = Array.isArray(output) ? output[0] : output;
+    const newName = (file.name || 'image').replace(/\.(heic|heif)$/i, '.jpg');
+    return new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
+  } catch (error) {
+    console.warn('HEIC 转 JPEG 失败，将回退为原文件上传:', error);
+    // 回退：返回原文件，保证不阻塞
+    return file;
+  }
+};
+
 /**
  * 检查文件是否需要压缩
  * @param {File} file - 原始文件
@@ -137,7 +166,12 @@ export const compressImage = async (file, options = {}) => {
  */
 export const processImageBeforeUpload = async (file) => {
   try {
-    // 检查文件类型
+    // HEIC/HEIF 先转换为 JPEG
+    if (isHeicLike(file)) {
+      file = await convertHeicToJpeg(file);
+    }
+
+    // 检查文件类型（转换后或原始）
     if (!file.type.startsWith('image/')) {
       throw new Error('只能上传图片文件');
     }

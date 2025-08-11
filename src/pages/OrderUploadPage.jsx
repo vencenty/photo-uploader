@@ -239,7 +239,8 @@ function OrderUploadPage() {
             setSizePhotos(newSizePhotos);
           }
 
-          message.success('订单信息加载成功');
+          // 使用唯一 key 防止开发环境 StrictMode 下 effect 执行两次导致重复弹窗
+          message.success({ content: '订单信息加载成功', key: 'order-load-success' });
         } else {
           message.info('未查询到订单信息，将创建新订单');
         }
