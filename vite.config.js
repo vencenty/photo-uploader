@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import legacy from '@vitejs/plugin-legacy'
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -24,15 +25,33 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       react({
-        // 强制使用 Babel 进行转译，确保兼容性
+        // 使用 Babel 进行转译，确保兼容性
         babel: {
           configFile: true, // 使用 babel.config.js
           babelrc: false,
         },
+      }),
+      legacy({
+        // 依据 browserslist 生成兼容 bundle 和自动 Polyfill（systemjs + modern bundle）
+        targets: [
+          'defaults',
+          'ios_saf >= 10',
+          'safari >= 11',
+          'chrome >= 58',
+          'firefox >= 57',
+          'edge >= 16'
+        ],
+        polyfills: true,
+        additionalLegacyPolyfills: [
+          'core-js/stable',
+          'regenerator-runtime/runtime'
+        ],
+        renderLegacyChunks: true,
+        externalSystemJS: true
       })
     ],
     build: {
-      target: 'es2015', // 使用单一目标，避免构建冲突
+      target: 'es2015',
       modulePreload: { polyfill: false },
       cssTarget: 'chrome58', // 降低CSS兼容性目标，支持更多浏览器
       minify: 'terser', // 使用terser进行更好的压缩
