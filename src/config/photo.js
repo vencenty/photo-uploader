@@ -33,12 +33,12 @@ export const PHOTO = [
     },
     {
       "name": "大5寸-满版",
-      "aspectRatio": 4/3,
+      "aspectRatio": 3/4,
       "recommendResize": true
     },
     {
       "name": "大5寸-留白",
-      "aspectRatio": 4/3,
+      "aspectRatio": 3/4,
       "recommendResize": false
     },
     {
@@ -53,12 +53,12 @@ export const PHOTO = [
     },
     {
       "name": "大6寸-满版",
-      "aspectRatio": 4/3,
+      "aspectRatio": 3/4,
       "recommendResize": true
     },
     {
       "name": "大6寸-留白",
-      "aspectRatio": 4/3,
+      "aspectRatio": 3/4,
       "recommendResize": false
     },
     {
