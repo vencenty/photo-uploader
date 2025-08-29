@@ -7,10 +7,13 @@ import {
   Modal, Spin, Statistic, Tooltip, notification
 } from 'antd';
 import {
-  SaveOutlined, InfoCircleOutlined, ScissorOutlined, DeleteOutlined
+  SaveOutlined, InfoCircleOutlined, ScissorOutlined, DeleteOutlined,
+  ScanOutlined, CheckCircleOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { getOrderInfo, submitOrder } from '../services/api';
 import PhotoUploader from '../components/PhotoUploader';
+import DuplicatePhotosModal from '../components/DuplicatePhotosModal';
+import { detectAllDuplicates, formatDetectionResults } from '../utils/duplicateDetection';
 
 import { uploadConfig } from '../config/app.config';
 import { getSizeOptions, PHOTO } from '../config/photo';
@@ -131,6 +134,11 @@ function OrderUploadPage() {
 
   // 修改：改用对象存储每个尺寸的上传状态
   const [uploadingPhotosBySize, setUploadingPhotosBySize] = useState({});
+  
+  // 重复图片检测相关状态
+  const [isDetectingDuplicates, setIsDetectingDuplicates] = useState(false);
+  const [duplicateDetectionResult, setDuplicateDetectionResult] = useState(null);
+  const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   
   // 缓存复杂计算结果和防抖定时器
   const calculationCache = useRef(new Map());
@@ -400,6 +408,102 @@ function OrderUploadPage() {
     // PhotoUploader传递的是状态更新函数，直接传给setSizePhotos
     setSizePhotos(stateUpdater);
   }, []);
+
+  // 处理重复图片检测
+  const handleDetectDuplicates = useCallback(() => {
+    // 检查是否有照片正在上传
+    if (totalUploading > 0) {
+      message.warning('有照片正在上传中，请等待上传完成后再检测重复图片');
+      return;
+    }
+
+    // 检查是否有足够的照片进行检测
+    if (totalPhotos < 2) {
+      message.info('至少需要2张照片才能进行重复检测');
+      return;
+    }
+
+    setIsDetectingDuplicates(true);
+    
+    try {
+      console.log('开始检测重复图片（基于SHA1）...', { selectedSizes, sizePhotos });
+      
+      // 执行重复检测（同步操作，基于SHA1，性能极佳）
+      const detectionResults = detectAllDuplicates(sizePhotos, selectedSizes);
+      
+      // 格式化检测结果
+      const formattedResults = formatDetectionResults(detectionResults);
+      setDuplicateDetectionResult(formattedResults);
+      
+      if (formattedResults.hasDuplicates) {
+        message.warning({
+          content: `检测完成：${formattedResults.summary}`,
+          duration: 5
+        });
+        // 自动打开详情弹窗
+        setTimeout(() => {
+          setDuplicateModalVisible(true);
+        }, 500);
+      } else {
+        message.success('检测完成：未发现重复图片');
+      }
+      
+    } catch (error) {
+      console.error('重复图片检测失败:', error);
+      message.error('重复图片检测失败，请重试');
+      setDuplicateDetectionResult(null);
+    } finally {
+      setIsDetectingDuplicates(false);
+    }
+  }, [totalUploading, totalPhotos, selectedSizes, sizePhotos]);
+
+  // 处理删除重复图片
+  const handleDeleteDuplicatePhotos = useCallback(async (photoIds) => {
+    if (!photoIds || photoIds.length === 0) {
+      return;
+    }
+
+    try {
+      // 按规格分组删除照片
+      const deletePromises = [];
+      
+      selectedSizes.forEach(size => {
+        const photosToDelete = photoIds.filter(photoId => {
+          const photos = sizePhotos[size] || [];
+          return photos.some(photo => photo.id === photoId);
+        });
+        
+        if (photosToDelete.length > 0) {
+          deletePromises.push(
+            new Promise((resolve) => {
+              // 使用现有的删除逻辑
+              setSizePhotos(prev => {
+                const currentSizePhotos = prev[size] || [];
+                const newSizePhotos = currentSizePhotos.filter(
+                  photo => !photosToDelete.includes(photo.id)
+                );
+                
+                resolve();
+                return {
+                  ...prev,
+                  [size]: newSizePhotos
+                };
+              });
+            })
+          );
+        }
+      });
+      
+      await Promise.all(deletePromises);
+      
+      // 清空检测结果，需要重新检测
+      setDuplicateDetectionResult(null);
+      
+    } catch (error) {
+      console.error('删除重复图片失败:', error);
+      throw error;
+    }
+  }, [selectedSizes, sizePhotos]);
 
   // 使用稳定的事件处理函数缓存
   const uploadCountHandlers = useMemo(() => {
@@ -988,6 +1092,89 @@ function OrderUploadPage() {
              
             </div>
           )}
+
+          {/* 重复图片检测区域 */}
+          {totalPhotos >= 2 && (
+            <div style={{
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>🔍</span>
+                  <Text strong>重复图片检测</Text>
+                  <Text type="secondary">({totalPhotos}张图片)</Text>
+                </div>
+                
+                {!isDetectingDuplicates && !duplicateDetectionResult && (
+                  <Button 
+                    type="primary" 
+                    size="small"
+                    icon={<ScanOutlined />}
+                    onClick={handleDetectDuplicates}
+                    disabled={totalPhotos < 2 || totalUploading > 0}
+                  >
+                    检测重复图片
+                  </Button>
+                )}
+                
+                {isDetectingDuplicates && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Spin size="small" />
+                    <Text type="secondary">正在检测...</Text>
+                  </div>
+                )}
+              </div>
+              
+              {/* 检测结果显示 */}
+              {duplicateDetectionResult && (
+                <div style={{ marginTop: '12px' }}>
+                  {!duplicateDetectionResult.hasDuplicates ? (
+                    <div style={{ color: '#52c41a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CheckCircleOutlined />
+                      <Text type="success">未发现重复图片</Text>
+                      <Button 
+                        type="link" 
+                        size="small"
+                        onClick={() => setDuplicateDetectionResult(null)}
+                      >
+                        重新检测
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ color: '#faad14', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <ExclamationCircleOutlined />
+                        <Text style={{ color: '#faad14' }}>
+                          {duplicateDetectionResult.summary}
+                        </Text>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <Button 
+                          type="link" 
+                          size="small"
+                          onClick={() => setDuplicateModalVisible(true)}
+                        >
+                          查看详情 →
+                        </Button>
+                        <Button 
+                          type="link" 
+                          size="small"
+                          onClick={() => setDuplicateDetectionResult(null)}
+                        >
+                          重新检测
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{
             display: 'flex',
             flexDirection: isMobile ? 'column' : 'row',
@@ -1196,6 +1383,14 @@ function OrderUploadPage() {
           </div>
         </Modal>
 
+        {/* 重复图片检测结果弹窗 */}
+        <DuplicatePhotosModal
+          visible={duplicateModalVisible}
+          onClose={() => setDuplicateModalVisible(false)}
+          detectionResults={duplicateDetectionResult}
+          onDeletePhotos={handleDeleteDuplicatePhotos}
+          isMobile={isMobile}
+        />
 
       </div>
     </Spin>

@@ -112,10 +112,10 @@ const PhotoUploader = memo(({
       
       // 检查API响应是否成功
       if (response.code === 0 && response.data) {
-        // 根据接口文档获取图片URL
+        // 根据接口文档获取图片URL和其他信息
         const photoUrl = response.data.url || response.data;
         
-        console.log("photoUrl", photoUrl);
+        console.log("上传响应数据:", response.data);
         // 创建照片对象
         const newPhoto = {
           id: Math.random().toString(36).substr(2, 9),
@@ -125,13 +125,20 @@ const PhotoUploader = memo(({
           status: 'done',
           // 服务端URL（用于提交）
           serverUrl: photoUrl,
+          // 🚀 保存服务端返回的SHA1哈希值（用于重复检测）
+          sha1: response.data.sha1,
+          // 保存服务端返回的其他信息
+          filename: response.data.filename,
+          serverSize: response.data.size,
           // 添加压缩标记
           compressed: needCompression,
           // 记录原始大小和压缩后大小
           originalSize: file.size,
           compressedSize: processedFile.size,
           // 默认数量为1
-          quantity: 1
+          quantity: 1,
+          // 上传时间戳
+          uploadTime: Date.now()
         };
         
         // 🚀 优化：精确更新照片列表，避免触发其他照片重新渲染
@@ -292,13 +299,14 @@ const PhotoUploader = memo(({
       const response = await uploadPhoto(croppedFile, orderSn, size);
       
       if (response.code === 0 && response.data) {
-        // 获取新的URL
+        // 获取新的URL和SHA1
         const photoUrl = response.data.url || response.data;
         
         // 🚀 优化：使用更精确的状态更新，避免触发其他照片的重新渲染
         console.log(`🔧 ${cropKey} - 开始状态更新:`, {
           photoId: currentPhoto.id,
           newUrl: photoUrl,
+          newSha1: response.data.sha1,
           size: size
         });
         
@@ -337,6 +345,10 @@ const PhotoUploader = memo(({
             name: croppedFile.name,
             cropped: true,
             quantity: currentSizePhotos[photoIndex].quantity || 1,
+            // 🚀 更新SHA1哈希值（裁剪后的新文件）
+            sha1: response.data.sha1,
+            filename: response.data.filename,
+            serverSize: response.data.size,
             lastModified: Date.now()
           };
           
@@ -369,6 +381,9 @@ const PhotoUploader = memo(({
               name: croppedFile.name,
               cropped: true,
               quantity: currentPhoto.quantity || 1,
+              sha1: response.data.sha1,
+              filename: response.data.filename,
+              serverSize: response.data.size,
               lastModified: Date.now()
             };
             
