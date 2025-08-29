@@ -12,7 +12,10 @@
   /* 禁止文本选择时的缩放 */
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
-  /* 禁止双击缩放 */
+}
+
+/* 仅对按钮和交互元素禁止双击缩放，保持滚动区域的正常触摸行为 */
+button, .ant-btn, input[type="button"], input[type="submit"] {
   touch-action: manipulation;
 }
 
@@ -188,19 +191,22 @@ body {
   }
 }
 
-/* 针对iPhone的特殊优化 */
+/* 针对iPhone的特殊优化 - 修复iOS 16滚动问题 */
 @supports (-webkit-touch-callout: none) {
   /* iPhone Safari 专用样式 */
   body {
-    /* 防止页面滚动时的橡皮筋效果 */
-    position: fixed;
-    overflow: hidden;
+    /* 使用更温和的方式防止橡皮筋效果，移除position: fixed避免iOS 16滚动问题 */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
   
   #root {
     /* 确保内容可以正常滚动 */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* 添加iOS 16特殊处理 */
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
   }
   
   /* 防止输入框被虚拟键盘遮挡 */

@@ -985,12 +985,7 @@ function OrderUploadPage() {
                   <span>自动保存失败，请手动保存</span>
                 </>
               )}
-              {autoSaveStatus === 'idle' && lastAutoSaveTimeRef.current > 0 && (
-                <>
-                  <span>💾</span>
-                  <span>自动保存已启用 (3秒间隔)</span>
-                </>
-              )}
+             
             </div>
           )}
           <div style={{

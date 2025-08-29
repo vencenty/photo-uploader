@@ -26,8 +26,26 @@ export const preventZoom = () => {
   });
 };
 
-// 防止页面滚动回弹
+// 防止页面滚动回弹 - iOS 16优化版本
 export const preventBounce = () => {
+  // 检测iOS版本，iOS 16+使用更温和的处理方式
+  const isIOS16Plus = /OS 1[6-9]_|OS [2-9][0-9]_/.test(navigator.userAgent);
+  
+  if (isIOS16Plus) {
+    // iOS 16+ 主要依靠CSS的overscroll-behavior来处理，减少JavaScript干预
+    document.body.style.overscrollBehavior = 'none';
+    
+    // 只阻止多点触控缩放
+    document.body.addEventListener('touchstart', function (event) {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+    
+    return; // 不添加复杂的touchmove监听
+  }
+
+  // iOS 15及以下使用原有的复杂处理逻辑
   document.body.addEventListener('touchstart', function (event) {
     if (event.touches.length > 1) {
       event.preventDefault();
