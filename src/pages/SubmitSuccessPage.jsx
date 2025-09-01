@@ -1,12 +1,12 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Result, Button, Card, List, Typography, Statistic, 
-  Space, Empty, Divider, Row, Col 
+import {
+  Result, Button, Card, List, Typography, Statistic,
+  Space, Empty, Divider, Row, Col, Alert
 } from 'antd';
-import { 
+import {
   CheckCircleFilled, HomeOutlined, ProfileOutlined,
-  ArrowRightOutlined
+  ArrowRightOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -25,7 +25,7 @@ function SubmitSuccessPage() {
         subTitle="没有找到订单数据，请返回查询页面"
         extra={
           <Button type="primary" onClick={() => navigate('/')}>
-            返回查询页面
+            返回订单页面
           </Button>
         }
       />
@@ -101,6 +101,21 @@ function SubmitSuccessPage() {
           )}
         />
       </Card>
+
+      <Alert
+        message="重要提醒"
+        description={
+          <div>
+            <p style={{ marginBottom: 8 }}>请确保这里的规格和淘宝订单完全一致。</p>
+            <p style={{ marginBottom: 8 }}>如果您拍了多个尺寸，比如 3寸留白-10张，5寸留白-8张。</p>
+            <p>请确保这里的数量可以和淘宝订单匹配，数量不匹配我们会再次跟您确认，影响发货时效。</p>
+          </div>
+        }
+        type="error"
+        showIcon
+        icon={<ExclamationCircleOutlined />}
+     
+      />
     </div>
   );
 }
