@@ -40,17 +40,32 @@ const PhotoCard = React.memo(({ photo, isFirst, isSelected, onSelect, isMobile }
       className={isSelected ? 'selected-photo' : ''}
       style={{
         border: isSelected ? '2px solid #ff4d4f' : '1px solid #d9d9d9',
-        backgroundColor: isFirst ? '#f6ffed' : '#fff'
+        backgroundColor: isFirst ? '#f6ffed' : '#fff',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease'
       }}
       cover={
-        <div style={{ position: 'relative' }}>
+        <div style={{ 
+          position: 'relative',
+          width: '100%',
+          height: isMobile ? '80px' : '100px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#fafafa',
+          overflow: 'hidden'
+        }}>
           <Image
             src={getCompressedImageUrl(photo.serverUrl || photo.url, 'duplicate')}
             alt={photo.name}
             style={{ 
-              width: '100%', 
-              height: isMobile ? '80px' : '100px', 
-              objectFit: 'cover' 
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'contain',
+              display: 'block'
             }}
             preview={false} // 🚀 优化：禁用预览减少DOM事件监听
             placeholder={
@@ -87,29 +102,45 @@ const PhotoCard = React.memo(({ photo, isFirst, isSelected, onSelect, isMobile }
         </div>
       }
       actions={[
-        !isFirst ? (
-          <Checkbox
-            key="select"
-            checked={isSelected}
-            onChange={(e) => onSelect(photo.id, e.target.checked)}
-          >
-            选择删除
-          </Checkbox>
-        ) : (
-          <Tag key="keep" color="green" icon={<CheckCircleOutlined />}>
-            建议保留
-          </Tag>
-        )
+        <div key="action" style={{ textAlign: 'center', width: '100%' }}>
+          {!isFirst ? (
+            <Checkbox
+              checked={isSelected}
+              onChange={(e) => onSelect(photo.id, e.target.checked)}
+              style={{ fontSize: isMobile ? '12px' : '14px' }}
+            >
+              <span style={{ color: isSelected ? '#ff4d4f' : '#666' }}>
+                选择删除
+              </span>
+            </Checkbox>
+          ) : (
+            <Tag color="green" icon={<CheckCircleOutlined />} style={{ margin: 0 }}>
+              建议保留
+            </Tag>
+          )}
+        </div>
       ]}
     >
       <Card.Meta
         title={
-          <div style={{ fontSize: isMobile ? '12px' : '14px' }}>
+          <div style={{ 
+            fontSize: isMobile ? '12px' : '14px',
+            textAlign: 'center',
+            fontWeight: '500',
+            color: '#333',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
             {photo.name}
           </div>
         }
         description={
-          <div style={{ fontSize: isMobile ? '10px' : '12px' }}>
+          <div style={{ 
+            fontSize: isMobile ? '10px' : '12px',
+            textAlign: 'center',
+            color: '#666'
+          }}>
             <div>数量: {photo.quantity || 1} 张</div>
           </div>
         }
@@ -157,7 +188,7 @@ const DuplicateGroup = React.memo(({ group, groupIndex, selectedPhotos, onGroupS
         </Checkbox>
       </div>
 
-      <Row gutter={[8, 8]}>
+      <Row gutter={[12, 12]} justify="start" align="middle">
         {group.photos.map((photo, photoIndex) => 
           renderPhotoCard(photo, photoIndex === 0, groupIndex, photoIndex)
         )}
@@ -449,7 +480,11 @@ const DuplicatePhotosModal = ({
 
       <style jsx>{`
         .selected-photo {
-          box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3) !important;
+          box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4) !important;
+          transform: translateY(-2px);
+        }
+        .selected-photo:hover {
+          box-shadow: 0 6px 16px rgba(255, 77, 79, 0.5) !important;
         }
       `}</style>
     </Modal>

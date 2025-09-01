@@ -160,7 +160,7 @@ const PhotoUploader = memo(({
           ? `，压缩率: ${((1 - processedFile.size / file.size) * 100).toFixed(0)}%` 
           : '';
           
-        message.success(`${file.name} 上传成功${sizeReduction}`);
+        // message.success(`${file.name} 上传成功${sizeReduction}`);
         
         // 调用成功回调
         onSuccess(response);
