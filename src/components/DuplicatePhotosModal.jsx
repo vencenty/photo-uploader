@@ -380,7 +380,7 @@ const DuplicatePhotosModal = ({
               loading={isPending}
               disabled={isPending || selectionStats.isAllSelected}
             >
-              {isPending ? '选择中...' : selectionStats.isAllSelected ? '已全选' : '智能选择'}
+              {isPending ? '选择中...' : selectionStats.isAllSelected ? '已全选' : '全选'}
             </Button>
             <Button 
               size="small" 
@@ -395,9 +395,6 @@ const DuplicatePhotosModal = ({
           </div>
           
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Button onClick={onClose}>
-              关闭
-            </Button>
             <Button 
               type="primary" 
               danger
