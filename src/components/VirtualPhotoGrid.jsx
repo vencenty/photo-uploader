@@ -3,7 +3,7 @@ import { Button, Tag, Image, Typography, Modal, InputNumber, message } from 'ant
 import { DeleteOutlined, CompressOutlined, ScissorOutlined } from '@ant-design/icons';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { getProxiedImageUrl, processImageWithOSS } from '../utils/imageUtils';
-import { getAspectRatioByName } from '../config/photo';
+import { getAspectRatioByName, getCompressedImageUrl } from '../config/photo';
 
 const { Text } = Typography;
 
@@ -222,7 +222,7 @@ const PhotoItem = React.memo(({
           boxSizing: 'border-box',
         }}>
           <Image
-            src={getProxiedImageUrl(photo.url)}
+            src={getProxiedImageUrl(getCompressedImageUrl(photo.url, 'thumbnail'))}
             alt={photo.name}
             style={imageStyle}
             preview={showPreview ? false : {

@@ -1,0 +1,360 @@
+/* 照片上传组件样式 */
+.photo-uploader-container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* 上传区域包装器 */
+.upload-area-wrapper {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+/* 拖拽上传区域 */
+.upload-dragger {
+  width: 100% !important;
+  min-height: 180px !important;
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f8ff 100%) !important;
+  border: 2px dashed #d9d9d9 !important;
+  border-radius: 12px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.upload-dragger:hover {
+  border-color: #1890ff !important;
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(24, 144, 255, 0.15) !important;
+}
+
+.upload-dragger.ant-upload-drag-hover {
+  border-color: #40a9ff !important;
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%) !important;
+}
+
+.upload-dragger.uploading {
+  border-color: #52c41a !important;
+  background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%) !important;
+  animation: uploadPulse 2s ease-in-out infinite !important;
+}
+
+/* 上传内容区域 */
+.upload-content {
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+/* 图标包装器 */
+.upload-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(24, 144, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.upload-dragger:hover .upload-icon-wrapper {
+  transform: scale(1.1);
+  box-shadow: 0 6px 28px rgba(24, 144, 255, 0.4);
+}
+
+.upload-dragger.uploading .upload-icon-wrapper {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  animation: iconSpin 3s linear infinite;
+}
+
+/* 上传图标 */
+.upload-icon {
+  font-size: 32px !important;
+  color: white !important;
+  transition: all 0.3s ease;
+}
+
+/* 文本包装器 */
+.upload-text-wrapper {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* 标题 */
+.upload-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.upload-dragger.uploading .upload-title {
+  color: #52c41a;
+}
+
+/* 副标题 */
+.upload-subtitle {
+  font-size: 16px;
+  color: #595959;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.upload-dragger.uploading .upload-subtitle {
+  color: #389e0d;
+}
+
+/* 提示文本 */
+.upload-tips {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* 进度指示器 */
+.upload-progress-indicator {
+  width: 100%;
+  max-width: 300px;
+  margin-top: 24px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #52c41a 0%, #73d13d 100%);
+  border-radius: 2px;
+  animation: progressFlow 2s ease-in-out infinite;
+}
+
+/* 响应式设计 - 平板 */
+@media (max-width: 768px) {
+  .upload-dragger {
+    min-height: 160px !important;
+  }
+
+  .upload-content {
+    padding: 28px 20px;
+  }
+
+  .upload-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+  }
+
+  .upload-icon {
+    font-size: 28px !important;
+  }
+
+  .upload-title {
+    font-size: 18px;
+  }
+
+  .upload-subtitle {
+    font-size: 15px;
+  }
+
+  .upload-tips {
+    font-size: 13px;
+  }
+}
+
+/* 响应式设计 - 手机 */
+@media (max-width: 480px) {
+  .upload-area-wrapper {
+    margin-bottom: 16px;
+  }
+
+  /* 手机端简约设计 */
+  .upload-dragger {
+    min-height: 80px !important;
+    border-radius: 8px !important;
+    background: #fafafa !important;
+    border: 1px solid #d9d9d9 !important; 
+  }
+
+  .upload-dragger:hover {
+    background: #f0f8ff !important;
+    border-color: #1890ff !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .upload-content {
+    padding: 16px 12px;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  /* 简化图标 */
+  .upload-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0;
+    background: #1890ff !important;
+    box-shadow: none;
+    flex-shrink: 0;
+  }
+
+  .upload-dragger:hover .upload-icon-wrapper {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .upload-icon {
+    font-size: 18px !important;
+  }
+
+  /* 简化文本布局 */
+  .upload-text-wrapper {
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .upload-title {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 500;
+  }
+
+  /* 隐藏多余信息 */
+  .upload-subtitle,
+  .upload-tips {
+    display: none;
+  }
+
+  .upload-progress-indicator {
+    margin-top: 12px;
+  }
+
+  /* 禁用手机端动画 */
+  .upload-dragger.uploading {
+    animation: none !important;
+  }
+
+  .upload-dragger.uploading .upload-icon-wrapper {
+    animation: none !important;
+  }
+
+  .upload-dragger::before {
+    display: none !important;
+  }
+}
+
+/* 动画效果 */
+@keyframes uploadPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(82, 196, 26, 0);
+  }
+}
+
+@keyframes iconSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progressFlow {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  50% {
+    width: 60%;
+    opacity: 0.8;
+  }
+  100% {
+    width: 100%;
+    opacity: 0.6;
+  }
+}
+
+/* 拖拽激活状态 */
+.upload-dragger.ant-upload-drag-hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    rgba(24, 144, 255, 0.1) 0%,
+    rgba(64, 169, 255, 0.1) 50%,
+    rgba(24, 144, 255, 0.1) 100%);
+  animation: dragShimmer 1.5s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes dragShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 组件入场动画 */
+.photo-uploader-container {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Antd 组件覆盖 */
+.upload-dragger .ant-upload {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.upload-dragger .ant-upload-btn {
+  padding: 0 !important;
+}
+
+/* 确保在所有设备上都有良好的可访问性 */
+.upload-dragger:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+.upload-dragger:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}

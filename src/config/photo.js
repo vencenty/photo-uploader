@@ -162,3 +162,30 @@ export const getAspectRatioByName = (name) => {
   const found = PHOTO.find(item => item.name === name);
   return found ? found.aspectRatio : 1;
 };
+
+// 🚀 图片压缩配置 - 用于缩略图快速加载
+export const IMAGE_COMPRESSION = {
+  // 列表页缩略图压缩参数
+  thumbnail: '?x-oss-process=image/resize,w_720/quality,q_50',
+  
+  // 重复检测弹窗缩略图压缩参数  
+  duplicate: '?x-oss-process=image/resize,w_400/quality,q_60',
+  
+  // 预览图压缩参数（如果需要）
+  preview: '?x-oss-process=image/resize,w_1200/quality,q_80',
+  
+  // 不压缩（用于裁剪等需要原图的场景）
+  original: ''
+};
+
+// 🚀 获取压缩后的图片URL
+export const getCompressedImageUrl = (url, compressionType = 'thumbnail') => {
+  if (!url || typeof url !== 'string') return url;
+  
+  // 如果已经有压缩参数，先移除
+  const baseUrl = url.split('?x-oss-process=')[0];
+  
+  // 根据压缩类型添加相应参数
+  const compression = IMAGE_COMPRESSION[compressionType];
+  return compression ? `${baseUrl}${compression}` : baseUrl;
+};

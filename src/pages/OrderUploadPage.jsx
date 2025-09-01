@@ -597,61 +597,55 @@ function OrderUploadPage() {
     }
   };
 
-  // 显示自动保存通知
+  // 🚀 优化：显示更低调的自动保存通知，不干扰用户操作
   const showAutoSaveNotification = useCallback(() => {
     const autoSaveDiv = document.createElement('div');
     autoSaveDiv.style.cssText = `
       position: fixed;
-      bottom: 20px;
+      bottom: 80px;
       right: 20px;
-      background: linear-gradient(135deg, #f6ffed 0%, #e6f7ff 100%);
-      border: 1px solid #52c41a;
-      border-radius: 12px;
-      padding: 16px 20px;
-      box-shadow: 0 8px 24px rgba(82, 196, 26, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1);
-      z-index: 10000;
-      max-width: 320px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e8e8e8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      z-index: 1000;
+      max-width: 200px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      animation: slideIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      cursor: pointer;
+      font-size: 12px;
+      color: #666;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      pointer-events: none;
     `;
     autoSaveDiv.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 20px;">💾</span>
-        <div>
-          <div style="color: #389e0d; font-weight: 600; font-size: 15px; margin-bottom: 2px;">
-            照片自动保存成功
-          </div>
-        </div>
-        <span style="color: #52c41a; font-weight: bold; font-size: 16px;">✓</span>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 12px; color: #52c41a;">✓</span>
+        <span>已自动保存</span>
       </div>
     `;
     
-    // 点击关闭
-    autoSaveDiv.onclick = () => {
-      if (autoSaveDiv.parentNode) {
-        autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
-        setTimeout(() => {
-          if (autoSaveDiv.parentNode) {
-            autoSaveDiv.parentNode.removeChild(autoSaveDiv);
-          }
-        }, 300);
-      }
-    };
-    
     document.body.appendChild(autoSaveDiv);
     
-    // 4秒后自动移除
+    // 淡入动画
+    setTimeout(() => {
+      autoSaveDiv.style.opacity = '1';
+      autoSaveDiv.style.transform = 'translateY(0)';
+    }, 10);
+    
+    // 2秒后淡出移除（时间更短，不干扰用户）
     setTimeout(() => {
       if (autoSaveDiv.parentNode) {
-        autoSaveDiv.style.animation = 'slideOut 0.3s ease-in';
+        autoSaveDiv.style.opacity = '0';
+        autoSaveDiv.style.transform = 'translateY(-10px)';
         setTimeout(() => {
           if (autoSaveDiv.parentNode) {
             autoSaveDiv.parentNode.removeChild(autoSaveDiv);
           }
-        }, 300);
+        }, 200);
       }
-    }, 4000);
+    }, 2000);
   }, []);
 
   // 自动保存函数
@@ -1053,17 +1047,13 @@ function OrderUploadPage() {
         <Card style={{ marginBottom: 16 }}>
 
 
-          {/* 自动保存状态显示 */}
-          {(autoSaveStatus !== 'idle' || lastAutoSaveTimeRef.current > 0) && (
+          {/* 🚀 优化：只在有意义的状态时才显示自动保存状态，避免空DOM */}
+          {(autoSaveStatus === 'saving' || autoSaveStatus === 'error') && (
             <div style={{ 
               marginBottom: 16, 
               padding: '8px 12px', 
-              background: autoSaveStatus === 'saving' ? '#f6ffed' : 
-                         autoSaveStatus === 'success' ? '#f6ffed' : 
-                         autoSaveStatus === 'error' ? '#fff2f0' : '#fafafa',
-              border: `1px solid ${autoSaveStatus === 'saving' ? '#b7eb8f' : 
-                                   autoSaveStatus === 'success' ? '#b7eb8f' : 
-                                   autoSaveStatus === 'error' ? '#ffccc7' : '#d9d9d9'}`,
+              background: autoSaveStatus === 'saving' ? '#f6ffed' : '#fff2f0',
+              border: `1px solid ${autoSaveStatus === 'saving' ? '#b7eb8f' : '#ffccc7'}`,
               borderRadius: 6,
               fontSize: 12,
               color: autoSaveStatus === 'error' ? '#cf1322' : '#52c41a',
@@ -1077,19 +1067,12 @@ function OrderUploadPage() {
                   <span>正在自动保存...</span>
                 </>
               )}
-              {autoSaveStatus === 'success' && (
-                <>
-                  <span>✅</span>
-                  <span>订单已自动保存</span>
-                </>
-              )}
               {autoSaveStatus === 'error' && (
                 <>
                   <span>⚠️</span>
                   <span>自动保存失败，请手动保存</span>
                 </>
               )}
-             
             </div>
           )}
 
