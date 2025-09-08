@@ -114,7 +114,6 @@ function SubmitSuccessPage() {
         type="error"
         showIcon
         icon={<ExclamationCircleOutlined />}
-     
       />
     </div>
   );

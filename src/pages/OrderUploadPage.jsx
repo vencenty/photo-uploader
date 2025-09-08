@@ -655,6 +655,12 @@ function OrderUploadPage() {
       return;
     }
 
+    // 🚀 新增：如果正在手动提交，跳过自动保存避免竞态条件
+    if (isModalOpen) {
+      console.log('🛡️ 正在手动提交确认中，跳过自动保存');
+      return;
+    }
+
     // 基本验证 - 必须有订单号和收货人
     if (!orderInfo.order_sn || !orderInfo.receiver) {
       return;
