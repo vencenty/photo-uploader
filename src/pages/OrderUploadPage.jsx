@@ -252,16 +252,16 @@ function OrderUploadPage() {
             // 使用唯一 key 防止开发环境 StrictMode 下 effect 执行两次导致重复弹窗
             message.success({ content: '订单信息加载成功', key: 'order-load-success' });
           } else {
-            message.info('未查询到订单信息，将创建新订单');
+            message.info({ content: '未查询到订单信息，将创建新订单', key: 'order-create-new' });
           }
         } else {
           // code !== 0 表示失败，显示服务端错误信息
           const errorMessage = response.msg || '获取订单信息失败';
           console.warn('服务端返回错误:', errorMessage);
           if (response.code === 2001) {  
-            message.info("加载成功，请您上传照片");
+            message.info({ content: "加载成功，请您上传照片", key: 'order-load-info' });
           } else {
-            message.error(errorMessage);
+            message.error({ content: errorMessage, key: 'order-load-error' });
           }
           
           // 即使查询失败，也允许用户创建新订单
@@ -273,7 +273,7 @@ function OrderUploadPage() {
       } catch (error) {
         console.error('获取订单信息网络错误:', error);
         // 这里只处理网络错误等异常情况
-        message.error(error.message || '获取订单信息失败');
+        message.error({ content: error.message || '获取订单信息失败', key: 'order-network-error' });
         // 出错时仍然设置订单号，允许用户创建新订单
         form.setFieldsValue({ order_sn: orderSnFromQuery });
         setOrderInfo({ order_sn: orderSnFromQuery, receiver: '', remark: '' });
