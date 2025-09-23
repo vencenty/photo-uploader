@@ -12,7 +12,7 @@ export const uploadConfig = {
       // 是否启用压缩
       enabled: true,
       // 压缩质量 (0-1)
-      quality: 0.8,
+      quality: 1,
       // 最大宽度
       maxWidth: 4000,
       // 最大高度

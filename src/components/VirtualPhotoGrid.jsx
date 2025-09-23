@@ -354,7 +354,7 @@ const PhotoItem = React.memo(({
             marginTop: itemWidth < 130 ? 1 : 2,
             lineHeight: itemWidth < 130 ? '10px' : '12px'
           }}>
-            {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''}
+            {/* {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''} */}
           </div>
         </div>
         {/* 按钮区域 - 现代化设计 */}

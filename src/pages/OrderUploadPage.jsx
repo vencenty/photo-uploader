@@ -868,7 +868,8 @@ function OrderUploadPage() {
           state: {
             total: totalPhotos,
             sizePhotoCount,
-            orderSn: orderInfo.order_sn
+            orderSn: orderInfo.order_sn,
+            receiver: orderInfo.receiver
           }
         });
 

@@ -32,7 +32,7 @@ function SubmitSuccessPage() {
     );
   }
 
-  const { total, sizePhotoCount, orderSn } = state;
+  const { total, sizePhotoCount, orderSn, receiver } = state;
 
   // 处理返回订单详情
   const handleBackToOrder = () => {
@@ -40,11 +40,11 @@ function SubmitSuccessPage() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '24px auto' }}>
+    <div style={{ maxWidth: 800, margin: '24px auto', padding: '0 16px' }}>
       <Result
         icon={<CheckCircleFilled style={{ color: '#52c41a', fontSize: 64 }} />}
         title="已经收到您的照片"
-        subTitle={`订单号: ${orderSn}`}
+        subTitle="若有其他图片上传请选择继续提交，若确认无误，请截图告诉客服开始制作，一般48小时左右会发货，大促期间可能会略有延迟，请耐心等待~"
         extra={[
           <Button 
             type="primary" 
@@ -58,62 +58,124 @@ function SubmitSuccessPage() {
             key="home" 
             icon={<HomeOutlined />}
             onClick={() => navigate('/')}
-          >
-            确认制作
+            >
+          返回首页
           </Button>,
         ]}
       />
       
+      {/* 基础信息卡片 - 紧凑布局 */}
       <Card
-        title="上传照片统计"
         bordered={false}
-        style={{ marginTop: 24 }}
+        style={{ marginBottom: 16 }}
+        bodyStyle={{ padding: '16px 24px' }}
       >
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <Statistic
-              title="照片总数"
-              value={total}
-              suffix="张"
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Col>
-        </Row>
-        
-        <Divider />
-        
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text type="secondary" style={{ fontSize: '14px' }}>订单号:</Text>
+            <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
+              {orderSn}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text type="secondary" style={{ fontSize: '14px' }}>收货人:</Text>
+            <Text strong style={{ fontSize: '16px' }}>
+              {receiver || '未填写'}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text type="secondary" style={{ fontSize: '14px' }}>照片总数:</Text>
+            <Text strong style={{ fontSize: '18px', color: '#52c41a' }}>
+              {total}张
+            </Text>
+          </div>
+        </div>
+      </Card>
+
+      {/* 照片统计卡片 */}
+      <Card
+        title={
+          <Space>
+            <CheckCircleFilled style={{ color: '#52c41a' }} />
+            <span>上传照片统计</span>
+          </Space>
+        }
+        bordered={false}
+        style={{ marginBottom: 24 }}
+      >
         <List
           itemLayout="horizontal"
           dataSource={Object.entries(sizePhotoCount)}
           renderItem={([size, count]) => (
             <List.Item 
-              extra={
-                <Space>
-                  <Text strong>{count}</Text>
-                  <Text type="secondary">张</Text>
-                </Space>
-              }
+              style={{
+                padding: '12px 0',
+                borderBottom: '1px solid #f0f0f0'
+              }}
             >
               <List.Item.Meta
-                title={size}
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong style={{ fontSize: '16px' }}>{size}</Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Text 
+                        strong 
+                        style={{ 
+                          fontSize: '18px', 
+                          color: '#52c41a',
+                          minWidth: '40px',
+                          textAlign: 'right'
+                        }}
+                      >
+                        {count}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: '14px' }}>张</Text>
+                    </div>
+                  </div>
+                }
+                description={
+                  <div style={{ marginTop: '4px' }}>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      规格：{size} • 数量：{count}张
+                    </Text>
+                  </div>
+                }
               />
             </List.Item>
           )}
+          locale={{ emptyText: '暂无照片数据' }}
         />
+
+    
       </Card>
 
+      {/* 重要提醒 */}
       <Alert
         message="重要提醒"
         description={
           <div>
-            <p style={{ marginBottom: 8 }}>请确保这里的规格和淘宝订单完全一致。</p>
-            <p style={{ marginBottom: 8 }}>如果您拍了多个尺寸，比如 3寸留白-10张，5寸留白-8张。</p>
-            <p>请确保这里的数量可以和淘宝订单匹配，数量不匹配我们会再次跟您确认，影响发货时效。</p>
+            <p style={{ marginBottom: 8, fontSize: '14px' }}>
+              📋 请确保上述规格和数量与您的淘宝订单完全一致。
+            </p>
+            <p style={{ marginBottom: 8, fontSize: '14px' }}>
+              📝 如果您购买了多个尺寸（如：3寸留白-10张，5寸留白-8张），请核对数量是否匹配。
+            </p>
+            <p style={{ marginBottom: 0, fontSize: '14px' }}>
+              ⚠️ 数量不匹配时我们会再次与您确认，可能会影响发货时效。
+            </p>
           </div>
         }
-        type="error"
+        type="warning"
         showIcon
         icon={<ExclamationCircleOutlined />}
+        style={{ marginBottom: 24 }}
       />
     </div>
   );

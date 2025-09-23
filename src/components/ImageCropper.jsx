@@ -310,14 +310,16 @@ const ImageCropper = memo(({
     <Modal
       title={
         <div style={{
-          fontSize: isMobile ? '18px' : '16px',
-          fontWeight: 600,
+          // fontSize: isMobile ? '18px' : '16px',
+          // fontWeight: 600,
           color: '#333'
         }}>
-          请先调整图片
-          <p style={{"color":"red"}}>裁剪框某些情况可能初始化不正确，点击切换方向可解决</p>
+          <h3>请调整图片</h3>
+          <p style={{"color":"red"}}>1. 裁剪框某些情况可能初始化不正确，点击切换方向可解决</p>
+          <p style={{"color":"red"}}>2. 调整画面请务将肢体放在紧贴画面边缘处，满版照片输出四周会有2-3mm的出血线被裁切。请预留好构图空间。</p>
         </div>
       }
+      
       open={visible}
       onCancel={handleClose}
       width={isMobile ? "95%" : 800}
