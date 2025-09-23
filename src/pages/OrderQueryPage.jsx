@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, message, Alert } from 'antd';
 import { SearchOutlined, ExclamationCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getOrderInfo } from '../services/api';
-
+import { InfoCircleOutlined } from '@ant-design/icons';
 const { Title } = Typography;
 
 function OrderQueryPage() {
@@ -35,7 +35,7 @@ function OrderQueryPage() {
 
     setLoading(true);
     setErrorInfo(null); // 清除之前的错误信息
-    
+
     try {
       // 调用实际API获取订单信息
       const response = await getOrderInfo(orderSn);
@@ -50,7 +50,7 @@ function OrderQueryPage() {
         // code !== 0 表示失败，直接显示服务端错误信息
         const errorMessage = response.msg || '查询订单失败';
         message.error(errorMessage);
-        
+
         // 设置错误信息用于显示
         setErrorInfo({
           type: 'server',
@@ -60,14 +60,14 @@ function OrderQueryPage() {
       }
     } catch (error) {
       console.error('查询订单网络错误:', error);
-      
+
       // 这里只处理网络错误、超时等异常情况
       message.error(error.message || '查询订单失败');
-      
+
       // 设置错误信息用于显示
       let errorType = 'network';
       let errorDescription = '网络连接异常，请检查网络后重试';
-      
+
       if (error.message) {
         if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
           errorType = 'server';
@@ -80,7 +80,7 @@ function OrderQueryPage() {
           errorDescription = '请求超时，请检查网络连接后重试';
         }
       }
-      
+
       setErrorInfo({
         type: errorType,
         message: error.message || '查询订单失败',
@@ -141,6 +141,22 @@ function OrderQueryPage() {
             </Button>
           </Form.Item>
         </Form>
+        <Alert message={"温馨提示"}
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          description={
+            <div>
+              <p>
+                1. <b style={{ color: 'red' }}>未下单的用户</b>可以用<b style={{ color: 'red' }}>手机号作为订单</b>进行上传。</p>
+              <p>2.上传的时候支持
+                <b style={{ color: 'red' }}>多次提交</b>，只要输入订单号就可以重新进入进行编辑，确认全部上传完毕后告诉客服开始制作。</p>
+              <p>
+                3. <b style={{ color: 'red' }}>上传为无损压缩</b>，请放心使用
+              </p>
+            </div>
+          }
+        />
 
         {/* 错误信息提示区域 */}
         {errorInfo && (
@@ -193,7 +209,7 @@ function OrderQueryPage() {
               type="error"
               showIcon
               icon={<ExclamationCircleOutlined />}
-              style={{ 
+              style={{
                 borderRadius: '6px',
                 border: '1px solid #ffccc7'
               }}
