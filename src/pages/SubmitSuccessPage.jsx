@@ -43,7 +43,7 @@ function SubmitSuccessPage() {
     <div style={{ maxWidth: 800, margin: '24px auto' }}>
       <Result
         icon={<CheckCircleFilled style={{ color: '#52c41a', fontSize: 64 }} />}
-        title="订单提交成功"
+        title="已经收到您的照片"
         subTitle={`订单号: ${orderSn}`}
         extra={[
           <Button 
@@ -52,14 +52,14 @@ function SubmitSuccessPage() {
             icon={<ProfileOutlined />}
             onClick={handleBackToOrder}
           >
-            查看订单信息
+            继续提交
           </Button>,
           <Button 
             key="home" 
             icon={<HomeOutlined />}
             onClick={() => navigate('/')}
           >
-            返回首页
+            确认制作
           </Button>,
         ]}
       />

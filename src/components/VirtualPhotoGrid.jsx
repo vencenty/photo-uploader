@@ -26,13 +26,15 @@ function useGridLayout(isMobile, photoCount) {
 
   // 🚀 使用useMemo缓存布局计算，避免不必要的重新计算
   const layoutParams = useMemo(() => {
-    // 最小item宽度180px，最大5列，移动端最多2列
-    const minItemWidth = 180;
-    let maxColumns = isMobile ? 2 : 5;
+    // 针对移动端优化：调整最小宽度和最大列数
+    const minItemWidth = isMobile ? 120 : 180; // 移动端最小宽度增加到120px，确保内容不被挤压
+    let maxColumns = isMobile ? 3 : 5; // 移动端最多3列，桌面端最多5列
     let columnCount = Math.max(1, Math.min(maxColumns, Math.floor(containerWidth / minItemWidth)));
     if (photoCount < columnCount) columnCount = photoCount || 1;
     const itemWidth = Math.floor(containerWidth / columnCount);
-    const itemHeight = Math.floor(itemWidth * 1.4); // 从1.15增加到1.4，给整个卡片更多高度
+    // 移动端适当增加高度比例，给内容更多垂直空间
+    const heightRatio = isMobile ? 1.45 : 1.4;
+    const itemHeight = Math.floor(itemWidth * heightRatio);
     
     return { columnCount, itemWidth, itemHeight };
   }, [containerWidth, isMobile, photoCount]);
@@ -185,13 +187,15 @@ const PhotoItem = React.memo(({
   };
   
   return (
-    <div style={{ ...style, padding: 12, boxSizing: 'border-box' }}> {/* 从8px增加到12px，增加卡片间距 */}
+    <div style={{ ...style, padding: itemWidth < 130 ? 4 : 12, boxSizing: 'border-box' }}> {/* 移动端减少外边距 */}
       <div style={{
         width: '100%',
         height: '100%',
         background: '#fff',
-        borderRadius: 12,
-        boxShadow: '0 3px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)',
+        borderRadius: itemWidth < 130 ? 6 : 12, // 小屏幕时减少圆角
+        boxShadow: itemWidth < 130 
+          ? '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' 
+          : '0 3px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)', // 小屏幕时减少阴影
         border: '1px solid #f5f5f5',
         display: 'flex',
         flexDirection: 'column',
@@ -218,7 +222,8 @@ const PhotoItem = React.memo(({
           justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden',
-          padding: '20px 12px 12px 12px', // 顶部20px，左右和底部12px，增加更多呼吸感
+          // 根据卡片宽度动态调整padding，给图片更多空间
+          padding: itemWidth < 130 ? '8px 4px 4px 4px' : '20px 12px 12px 12px',
           boxSizing: 'border-box',
         }}>
           <Image
@@ -236,20 +241,22 @@ const PhotoItem = React.memo(({
           <div 
             style={{
               position: 'absolute',
-              top: 8,
-              left: 8,
+              top: itemWidth < 130 ? 3 : 8,
+              left: itemWidth < 130 ? 3 : 8,
               background: 'linear-gradient(135deg, #52c41a 0%, #73d13d 100%)',
               color: 'white',
-              padding: '3px 10px',
-              borderRadius: 16,
-              fontSize: 11,
+              padding: itemWidth < 130 ? '1px 5px' : '3px 10px', // 小屏幕时进一步减少padding
+              borderRadius: itemWidth < 130 ? 10 : 16, // 小屏幕时减少圆角
+              fontSize: itemWidth < 130 ? 9 : 11, // 小屏幕时减少字体
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 3px 8px rgba(82, 196, 26, 0.4), 0 1px 3px rgba(0,0,0,0.1)',
-              minWidth: 36,
+              boxShadow: itemWidth < 130 
+                ? '0 2px 6px rgba(82, 196, 26, 0.3), 0 1px 2px rgba(0,0,0,0.08)'
+                : '0 3px 8px rgba(82, 196, 26, 0.4), 0 1px 3px rgba(0,0,0,0.1)',
+              minWidth: itemWidth < 130 ? 24 : 36, // 小屏幕时减少最小宽度
               textAlign: 'center',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              border: '1.5px solid rgba(255,255,255,0.9)',
+              border: itemWidth < 130 ? '1px solid rgba(255,255,255,0.8)' : '1.5px solid rgba(255,255,255,0.9)',
               userSelect: 'none',
               zIndex: 10
             }}
@@ -268,15 +275,54 @@ const PhotoItem = React.memo(({
           </div>
 
           {/* 状态标签 */}
-          <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ 
+            position: 'absolute', 
+            top: itemWidth < 130 ? 2 : 6, 
+            right: itemWidth < 130 ? 2 : 6, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: itemWidth < 130 ? 1 : 2 
+          }}>
             {showPreview && (
-              <Tag color={previewType === 'whiteBorder' ? 'cyan' : 'orange'} size="small" style={{ fontSize: 10, padding: '0 4px', margin: 0 }}>{previewType === 'whiteBorder' ? '📷 预览' : '🖼️ 预览'}</Tag>
+              <Tag color={previewType === 'whiteBorder' ? 'cyan' : 'orange'} size="small" style={{ 
+                fontSize: itemWidth < 130 ? 7 : 10, 
+                padding: itemWidth < 130 ? '0 3px' : '0 4px', 
+                margin: 0,
+                lineHeight: itemWidth < 130 ? '10px' : '16px',
+                height: itemWidth < 130 ? '12px' : 'auto'
+              }}>
+                {itemWidth < 130 
+                  ? (previewType === 'whiteBorder' ? '预览' : '预览') // 小屏幕时去掉emoji
+                  : (previewType === 'whiteBorder' ? '📷 预览' : '🖼️ 预览')
+                }
+              </Tag>
             )}
             {photo.compressed && (
-              <Tag color="blue" size="small" style={{ fontSize: 10, padding: '0 4px', margin: 0 }}><CompressOutlined style={{ fontSize: 10 }} /> 压缩</Tag>
+              <Tag color="blue" size="small" style={{ 
+                fontSize: itemWidth < 130 ? 7 : 10, 
+                padding: itemWidth < 130 ? '0 3px' : '0 4px', 
+                margin: 0,
+                lineHeight: itemWidth < 130 ? '10px' : '16px',
+                height: itemWidth < 130 ? '12px' : 'auto'
+              }}>
+                <CompressOutlined style={{ fontSize: itemWidth < 130 ? 7 : 10 }} /> 
+                {itemWidth < 130 ? '' : '压缩'} {/* 小屏幕时只显示图标 */}
+              </Tag>
             )}
             {photo.cropped && (
-              <Tag color="green" size="small" style={{ fontSize: 10, padding: '0 4px', margin: 0 }}><ScissorOutlined style={{ fontSize: 10 }} />{previewType === 'fullVersion' ? '已调整' : '裁剪'}</Tag>
+              <Tag color="green" size="small" style={{ 
+                fontSize: itemWidth < 130 ? 7 : 10, 
+                padding: itemWidth < 130 ? '0 3px' : '0 4px', 
+                margin: 0,
+                lineHeight: itemWidth < 130 ? '10px' : '16px',
+                height: itemWidth < 130 ? '12px' : 'auto'
+              }}>
+                <ScissorOutlined style={{ fontSize: itemWidth < 130 ? 7 : 10 }} />
+                {itemWidth < 130 
+                  ? '' // 小屏幕时只显示图标
+                  : (previewType === 'fullVersion' ? '已调整' : '裁剪')
+                }
+              </Tag>
             )}
           </div>
         </div>
@@ -287,12 +333,27 @@ const PhotoItem = React.memo(({
           display: 'flex', 
           flexDirection: 'column', 
           justifyContent: 'center', 
-          padding: '0 12px' 
+          padding: itemWidth < 130 ? '0 4px' : '0 12px' // 小屏幕时进一步减少padding
         }}>
-          <div style={{ fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={photo.name}>
+          <div style={{ 
+            fontSize: itemWidth < 130 ? 9 : 12, // 小屏幕时减少字体
+            color: '#333', 
+            whiteSpace: 'nowrap', 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis',
+            lineHeight: itemWidth < 130 ? '12px' : '16px'
+          }} title={photo.name}>
             {photo.name}
           </div>
-          <div style={{ fontSize: 10, color: '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
+          <div style={{ 
+            fontSize: itemWidth < 130 ? 8 : 10, // 小屏幕时减少字体
+            color: '#999', 
+            whiteSpace: 'nowrap', 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis', 
+            marginTop: itemWidth < 130 ? 1 : 2,
+            lineHeight: itemWidth < 130 ? '10px' : '12px'
+          }}>
             {photo.compressedSize ? formatFileSize(photo.compressedSize) : ''}
           </div>
         </div>
@@ -301,21 +362,21 @@ const PhotoItem = React.memo(({
           width: '100%', 
           height: btnHeight, 
           display: 'flex', 
-          gap: 10, 
-          padding: '7px 16px',
+          gap: itemWidth < 130 ? 4 : 10, // 小屏幕时进一步减少间距
+          padding: itemWidth < 130 ? '3px 4px' : '7px 16px', // 小屏幕时减少padding
           alignItems: 'center',
           justifyContent: 'center',
           background: '#fafafa'
         }}>
           <Button
             type="default"
-            icon={<ScissorOutlined style={{ fontSize: 13 }} />}
+            // icon={<ScissorOutlined style={{ fontSize: itemWidth < 130 ? 10 : 13 }} />}
             onClick={() => onCrop(photo)}
             style={{ 
               flex: 1, 
-              height: '32px', 
-              fontSize: 12, 
-              borderRadius: 8,
+              height: itemWidth < 130 ? '24px' : '32px', // 小屏幕时进一步减少高度
+              fontSize: itemWidth < 130 ? 9 : 12, // 小屏幕时减少字体
+              borderRadius: itemWidth < 130 ? 4 : 8, // 小屏幕时减少圆角
               border: '1px solid #e0e0e0',
               background: 'white',
               display: 'flex', 
@@ -323,7 +384,10 @@ const PhotoItem = React.memo(({
               justifyContent: 'center',
               fontWeight: 500,
               transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              boxShadow: itemWidth < 130 
+                ? '0 1px 2px rgba(0,0,0,0.03)' 
+                : '0 1px 2px rgba(0,0,0,0.05)',
+              padding: itemWidth < 130 ? '0 4px' : '0 8px'
             }}
             onMouseEnter={(e) => {
               e.target.style.borderColor = '#40a9ff';
@@ -342,19 +406,22 @@ const PhotoItem = React.memo(({
           </Button>
           <Button
             danger
-            icon={<DeleteOutlined style={{ fontSize: 13 }} />}
+            // icon={<DeleteOutlined style={{ fontSize: itemWidth < 130 ? 10 : 13 }} />}
             onClick={() => onDelete(photo.id)}
             style={{ 
               flex: 1, 
-              height: '32px', 
-              fontSize: 12, 
-              borderRadius: 8,
+              height: itemWidth < 130 ? '24px' : '32px', // 小屏幕时进一步减少高度
+              fontSize: itemWidth < 130 ? 9 : 12, // 小屏幕时减少字体
+              borderRadius: itemWidth < 130 ? 4 : 8, // 小屏幕时减少圆角
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
               fontWeight: 500,
               transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              boxShadow: itemWidth < 130 
+                ? '0 1px 2px rgba(0,0,0,0.03)' 
+                : '0 1px 2px rgba(0,0,0,0.05)',
+              padding: itemWidth < 130 ? '0 4px' : '0 8px'
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = 'translateY(-1px)';
