@@ -97,7 +97,7 @@ export const getOrderInfo = withErrorBoundary(async (orderSn) => {
     }),
   });
 
-  if (!response.ok) {
+  if (response.status !== 200) {
     const errorMessage = `请求失败: ${response.status} ${response.statusText}`;
     throw new Error(errorMessage);
   }
