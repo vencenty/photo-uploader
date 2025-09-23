@@ -104,15 +104,13 @@ export const getOrderInfo = withErrorBoundary(async (orderSn) => {
 
   const data = await response.json();
   
-  // 如果服务端返回的code不等于0，直接弹出服务端错误信息
-  if (data.code !== 0) {
-    const errorMessage = data.msg || '服务端错误';
-    throw new Error(errorMessage);
-  }
-  
+  // 🚀 修复：不论服务端返回什么code，都直接返回数据
+  // 让页面层根据response.code来判断是成功还是失败
+  // response.code === 0 表示成功，!== 0 表示失败（但不是网络错误）
+  console.log('服务端返回数据:', data);
   return data;
 }, async (orderSn) => {
-  // 错误降级方案
+  // 错误降级方案 - 只有在网络错误等异常情况下才会执行
   console.warn('订单信息查询失败，返回默认值');
   return {
     code: -1,

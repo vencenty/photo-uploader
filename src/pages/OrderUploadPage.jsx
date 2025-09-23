@@ -211,56 +211,70 @@ function OrderUploadPage() {
           remark: ''
         };
 
-        // 如果查询到数据，使用返回的数据
-        if (response.data) {
-          // 根据API返回的数据结构提取所需信息
-          formData.receiver = response.data.receiver || '';
-          // 删除备注字段显示，但保持空字符串用于提交
-          formData.remark = '';
+        // 🚀 修复：根据服务端返回的code判断成功或失败
+        if (response.code === 0) {
+          // code === 0 表示成功，查询到订单数据
+          if (response.data) {
+            // 根据API返回的数据结构提取所需信息
+            formData.receiver = response.data.receiver || '';
+            // 删除备注字段显示，但保持空字符串用于提交
+            formData.remark = '';
 
-          // 如果有照片数据，设置选中的尺寸和照片
-          if (response.data.photos && Array.isArray(response.data.photos)) {
-            const newSizePhotos = {};
-            const newSelectedSizes = [];
+            // 如果有照片数据，设置选中的尺寸和照片
+            if (response.data.photos && Array.isArray(response.data.photos)) {
+              const newSizePhotos = {};
+              const newSelectedSizes = [];
 
-            // 处理每种规格的照片
-            response.data.photos.forEach(item => {
-              if (item.spec && Array.isArray(item.metadata) && item.metadata.length > 0) {
-                // 添加到选中的尺寸
-                newSelectedSizes.push(item.spec);
+              // 处理每种规格的照片
+              response.data.photos.forEach(item => {
+                if (item.spec && Array.isArray(item.metadata) && item.metadata.length > 0) {
+                  // 添加到选中的尺寸
+                  newSelectedSizes.push(item.spec);
 
-                // 创建照片对象数组
-                newSizePhotos[item.spec] = item.metadata.map(photoMeta => ({
-                  id: uuidv4(),
-                  name: photoMeta.url.split('/').pop() || '照片',
-                  url: photoMeta.url,
-                  serverUrl: photoMeta.url,
-                  status: 'done',
-                  cropped: photoMeta.is_resized === 1, // 根据is_resized设置cropped状态
-                  quantity: photoMeta.num || 1 // 从服务端返回的num字段设置数量
-                }));
-              }
-            });
+                  // 创建照片对象数组
+                  newSizePhotos[item.spec] = item.metadata.map(photoMeta => ({
+                    id: uuidv4(),
+                    name: photoMeta.url.split('/').pop() || '照片',
+                    url: photoMeta.url,
+                    serverUrl: photoMeta.url,
+                    status: 'done',
+                    cropped: photoMeta.is_resized === 1, // 根据is_resized设置cropped状态
+                    quantity: photoMeta.num || 1 // 从服务端返回的num字段设置数量
+                  }));
+                }
+              });
 
-            // 更新状态
-            setSelectedSizes(newSelectedSizes);
-            setSizePhotos(newSizePhotos);
+              // 更新状态
+              setSelectedSizes(newSelectedSizes);
+              setSizePhotos(newSizePhotos);
+            }
+
+            // 使用唯一 key 防止开发环境 StrictMode 下 effect 执行两次导致重复弹窗
+            message.success({ content: '订单信息加载成功', key: 'order-load-success' });
+          } else {
+            message.info('未查询到订单信息，将创建新订单');
           }
-
-          // 使用唯一 key 防止开发环境 StrictMode 下 effect 执行两次导致重复弹窗
-          message.success({ content: '订单信息加载成功', key: 'order-load-success' });
         } else {
-          message.info('未查询到订单信息，将创建新订单');
+          // code !== 0 表示失败，显示服务端错误信息
+          const errorMessage = response.msg || '获取订单信息失败';
+          console.warn('服务端返回错误:', errorMessage);
+          if (response.code === 2001) {  
+            message.info("加载成功，请您上传照片");
+          } else {
+            message.error(errorMessage);
+          }
+          
+          // 即使查询失败，也允许用户创建新订单
         }
 
         // 设置到表单
         form.setFieldsValue(formData);
         setOrderInfo(formData);
       } catch (error) {
-        console.error('获取订单信息失败:', error);
-        // 显示服务端返回的错误信息
+        console.error('获取订单信息网络错误:', error);
+        // 这里只处理网络错误等异常情况
         message.error(error.message || '获取订单信息失败');
-        // 出错时仍然设置订单号
+        // 出错时仍然设置订单号，允许用户创建新订单
         form.setFieldsValue({ order_sn: orderSnFromQuery });
         setOrderInfo({ order_sn: orderSnFromQuery, receiver: '', remark: '' });
       } finally {
