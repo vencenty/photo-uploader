@@ -261,7 +261,7 @@ const PhotoUploader = memo(({
         };
       });
       
-      message.success(`${photoName} 已删除`);
+      // message.success(`${photoName} 已删除`);
     } catch (error) {
       console.error('删除照片失败:', error);
       message.error('删除照片失败，请重试');
