@@ -576,6 +576,11 @@ function OrderUploadPage() {
         return;
       }
 
+      if (orderInfo.receiver.length > 5) {
+        message.error('收货人不要超过5个字')
+        return;
+      } 
+
       // 检查是否有照片
       if (totalPhotos === 0) {
         message.error('请至少上传一张照片');

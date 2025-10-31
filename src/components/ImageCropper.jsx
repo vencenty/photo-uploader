@@ -319,7 +319,7 @@ const ImageCropper = memo(({
           <p style={{"color":"red"}}>2. 调整画面请不要将肢体放在紧贴画面边缘处，满版照片输出四周会有2-3mm的出血线被裁切。请预留好构图空间。</p>
         </div>
       }
-      
+
       open={visible}
       onCancel={handleClose}
       width={isMobile ? "95%" : 800}
@@ -446,10 +446,10 @@ ImageCropper.displayName = 'ImageCropper';
  */
 const getCroppedImg = async (imageSrc, pixelCrop) => {
   console.log('开始加载图片:', imageSrc);
-  
+
   // 强制使用CORS绕过方案，避免Canvas污染
   const image = await createMobileImageForCrop(imageSrc);
-  
+
   console.log('图片加载完成:', image.width, 'x', image.height);
 
   // 安全化裁剪区域（取整、最小值约束、防越界）
