@@ -166,14 +166,13 @@ export const getAspectRatioByName = (name) => {
 // 🚀 图片压缩配置 - 用于缩略图快速加载
 export const IMAGE_COMPRESSION = {
   // 列表页缩略图压缩参数
-  thumbnail: '?x-oss-process=image/resize,w_720/quality,q_50',
+  thumbnail: '?x-oss-process=image/resize,w_720/quality,q_50/format,jpg',
   
   // 重复检测弹窗缩略图压缩参数  
-  duplicate: '?x-oss-process=image/resize,w_400/quality,q_60',
+  duplicate: '?x-oss-process=image/resize,w_400/quality,q_60/format,jpg',
   
   // 预览图压缩参数（如果需要）
-  preview: '?x-oss-process=image/resize,w_1200/quality,q_80',
-  
+  preview: '?x-oss-process=image/resize,w_1200/quality,q_80/format,jpg',
   // 不压缩（用于裁剪等需要原图的场景）
   original: ''
 };
