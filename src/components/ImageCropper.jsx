@@ -4,6 +4,7 @@ import { SwapOutlined } from '@ant-design/icons';
 import ReactCrop from 'react-easy-crop';
 import styled from 'styled-components';
 import { createImageWithProxy, getProxiedImageUrl, createMobileImageForCrop } from '../utils/imageUtils';
+import { bleedLineConfig } from '../config/bleedLine.config';
 
 const StyledCropContainer = styled.div`
   position: relative;
@@ -149,6 +150,17 @@ const StatusBadge = styled.span`
   }
 `;
 
+// 从配置中获取出血线参数
+const {
+  width: bleedWidth,
+  mobileWidth: bleedMobileWidth,
+  color: bleedColor,
+  safeAreaBorderColor,
+  safeAreaBorderWidth,
+  stripeGap,
+  stripeWidth
+} = bleedLineConfig;
+
 // 出血线样式 - 通过 CSS 注入到 react-easy-crop 的裁剪区域
 const CropContainerWithBleedLines = styled.div`
   position: relative;
@@ -163,17 +175,17 @@ const CropContainerWithBleedLines = styled.div`
       &::before {
         content: '';
         position: absolute;
-        top: 8px;
-        left: 8px;
-        right: 8px;
-        bottom: 8px;
-        border: 2px dashed rgba(255, 255, 255, 0.9);
+        top: ${bleedWidth}px;
+        left: ${bleedWidth}px;
+        right: ${bleedWidth}px;
+        bottom: ${bleedWidth}px;
+        border: ${safeAreaBorderWidth}px dashed ${safeAreaBorderColor};
         pointer-events: none;
         z-index: 10;
-        box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.5);
+        box-shadow: 0 0 0 1px ${bleedColor};
       }
 
-      /* 四角斜线装饰 - 左上角 */
+      /* 四角斜线装饰 */
       &::after {
         content: '';
         position: absolute;
@@ -188,28 +200,28 @@ const CropContainerWithBleedLines = styled.div`
           repeating-linear-gradient(
             -45deg,
             transparent,
-            transparent 2px,
-            rgba(255, 0, 0, 0.5) 2px,
-            rgba(255, 0, 0, 0.5) 4px
+            transparent ${stripeGap}px,
+            ${bleedColor} ${stripeGap}px,
+            ${bleedColor} ${stripeGap + stripeWidth}px
           ),
           /* 右上角斜线 */
           repeating-linear-gradient(
             45deg,
             transparent,
-            transparent 2px,
-            rgba(255, 0, 0, 0.5) 2px,
-            rgba(255, 0, 0, 0.5) 4px
+            transparent ${stripeGap}px,
+            ${bleedColor} ${stripeGap}px,
+            ${bleedColor} ${stripeGap + stripeWidth}px
           );
-        background-size: 8px 8px, 8px 8px;
+        background-size: ${bleedWidth}px ${bleedWidth}px, ${bleedWidth}px ${bleedWidth}px;
         background-position: 0 0, 100% 0;
-        /* 只在边缘8px范围内显示斜线 */
+        /* 只在边缘范围内显示斜线 */
         -webkit-mask-image: 
-          linear-gradient(to right, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px)),
-          linear-gradient(to bottom, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px));
+          linear-gradient(to right, black ${bleedWidth}px, transparent ${bleedWidth}px, transparent calc(100% - ${bleedWidth}px), black calc(100% - ${bleedWidth}px)),
+          linear-gradient(to bottom, black ${bleedWidth}px, transparent ${bleedWidth}px, transparent calc(100% - ${bleedWidth}px), black calc(100% - ${bleedWidth}px));
         -webkit-mask-composite: source-over;
         mask-image: 
-          linear-gradient(to right, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px)),
-          linear-gradient(to bottom, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px));
+          linear-gradient(to right, black ${bleedWidth}px, transparent ${bleedWidth}px, transparent calc(100% - ${bleedWidth}px), black calc(100% - ${bleedWidth}px)),
+          linear-gradient(to bottom, black ${bleedWidth}px, transparent ${bleedWidth}px, transparent calc(100% - ${bleedWidth}px), black calc(100% - ${bleedWidth}px));
         mask-composite: add;
       }
     }
@@ -217,10 +229,10 @@ const CropContainerWithBleedLines = styled.div`
 
   @media (max-width: 768px) {
     &.show-bleed-lines .reactEasyCrop_CropArea::before {
-      top: 6px;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
+      top: ${bleedMobileWidth}px;
+      left: ${bleedMobileWidth}px;
+      right: ${bleedMobileWidth}px;
+      bottom: ${bleedMobileWidth}px;
     }
   }
 `;

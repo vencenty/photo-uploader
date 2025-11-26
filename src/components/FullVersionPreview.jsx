@@ -3,6 +3,7 @@ import { Modal, Button } from 'antd';
 import { getAspectRatioByName } from '../config/photo';
 import { getProxiedImageUrl } from '../utils/imageUtils';
 import { debugInfo, debugSuccess, debugWarning, debugError } from '../utils/debug';
+import { bleedLineConfig } from '../config/bleedLine.config';
 
 /**
  * 满版预览组件
@@ -98,6 +99,14 @@ const FullVersionPreview = memo(({
     onClose();
   };
 
+  // 从配置获取出血线参数
+  const bleedWidth = isMobile ? bleedLineConfig.mobileWidth : bleedLineConfig.width;
+  const bleedColor = bleedLineConfig.color;
+  const safeAreaBorderColor = bleedLineConfig.safeAreaBorderColor;
+  const safeAreaBorderWidth = bleedLineConfig.safeAreaBorderWidth;
+  const stripeGap = bleedLineConfig.stripeGap;
+  const stripeWidth = bleedLineConfig.stripeWidth;
+
   // 相纸样式 - 满版相纸，填满整个区域
   const photoPreviewStyle = {
     background: 'transparent', // 不要白色
@@ -122,6 +131,84 @@ const FullVersionPreview = memo(({
     overflow: 'hidden',
     margin: '20px auto',
     position: 'relative'
+  };
+
+  // 出血线覆盖层样式
+  const bleedLineOverlayStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+    zIndex: 10,
+  };
+
+  // 安全区域边框样式（内部虚线框）
+  const safeAreaStyle = {
+    position: 'absolute',
+    top: bleedWidth,
+    left: bleedWidth,
+    right: bleedWidth,
+    bottom: bleedWidth,
+    border: `${safeAreaBorderWidth}px dashed ${safeAreaBorderColor}`,
+    boxShadow: `0 0 0 1px ${bleedColor}`,
+    pointerEvents: 'none',
+    zIndex: 11,
+  };
+
+  // 生成斜线背景的CSS
+  const stripePattern = `
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent ${stripeGap}px,
+      ${bleedColor} ${stripeGap}px,
+      ${bleedColor} ${stripeGap + stripeWidth}px
+    )
+  `;
+
+  // 四边出血区域的通用样式
+  const bleedAreaBaseStyle = {
+    position: 'absolute',
+    background: stripePattern,
+    pointerEvents: 'none',
+  };
+
+  // 顶部出血区域
+  const bleedTopStyle = {
+    ...bleedAreaBaseStyle,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: bleedWidth,
+  };
+
+  // 底部出血区域
+  const bleedBottomStyle = {
+    ...bleedAreaBaseStyle,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: bleedWidth,
+  };
+
+  // 左侧出血区域
+  const bleedLeftStyle = {
+    ...bleedAreaBaseStyle,
+    top: bleedWidth,
+    left: 0,
+    bottom: bleedWidth,
+    width: bleedWidth,
+  };
+
+  // 右侧出血区域
+  const bleedRightStyle = {
+    ...bleedAreaBaseStyle,
+    top: bleedWidth,
+    right: 0,
+    bottom: bleedWidth,
+    width: bleedWidth,
   };
 
   const imageStyle = {
@@ -187,11 +274,23 @@ const FullVersionPreview = memo(({
       }}>
         <div style={photoPreviewStyle}>
           {processedImageUrl ? (
-            <img
-              src={processedImageUrl}
-              alt="预览图片"
-              style={imageStyle}
-            />
+            <>
+              <img
+                src={processedImageUrl}
+                alt="预览图片"
+                style={imageStyle}
+              />
+              {/* 出血线覆盖层 */}
+              <div style={bleedLineOverlayStyle}>
+                {/* 四边出血区域斜线 */}
+                <div style={bleedTopStyle} />
+                <div style={bleedBottomStyle} />
+                <div style={bleedLeftStyle} />
+                <div style={bleedRightStyle} />
+                {/* 安全区域边框 */}
+                <div style={safeAreaStyle} />
+              </div>
+            </>
           ) : (
             <div style={{
               display: 'flex',
@@ -207,17 +306,49 @@ const FullVersionPreview = memo(({
         </div>
       </div>
 
+      {/* 出血线图例说明 */}
+      <div style={{
+        marginTop: '16px',
+        padding: '12px',
+        background: '#fff7e6',
+        borderRadius: '6px',
+        border: '1px solid #ffd591',
+        fontSize: isMobile ? '11px' : '12px',
+        color: '#d46b08'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <div style={{
+            width: '20px',
+            height: '12px',
+            background: `repeating-linear-gradient(-45deg, transparent, transparent 2px, ${bleedColor} 2px, ${bleedColor} 4px)`,
+            border: `1px solid ${bleedColor}`,
+            borderRadius: '2px'
+          }} />
+          <span><strong>红色斜线区域</strong> = 出血区（打印时会被裁切掉，约2-3mm）</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: '20px',
+            height: '12px',
+            border: `2px dashed ${safeAreaBorderColor}`,
+            background: 'rgba(255,255,255,0.3)',
+            borderRadius: '2px'
+          }} />
+          <span><strong>白色虚线内</strong> = 安全区域（重要内容请放在此范围内）</span>
+        </div>
+      </div>
+
       {/* 底部提示 */}
       <div style={{ 
-        marginTop: '20px',
+        marginTop: '12px',
         fontSize: isMobile ? '11px' : '12px',
         color: '#666',
         lineHeight: '1.5'
       }}>
         <div>💡 <strong>提示：</strong></div>
         <div>• 满版照片会填满整个相纸区域，无留白边框</div>
-        <div>• 建议使用已裁剪调整过的照片以获得最佳效果</div>
-        <div>• 此预览展示的是实际打印的满版效果</div>
+        <div>• <span style={{ color: '#d46b08' }}>红色斜线区域的内容会在打印时被裁切</span></div>
+        <div>• 请确保人物肢体、重要文字等在白色虚线内</div>
         <div>• 预览效果仅供参考，实际效果可能因打印设备略有差异</div>
       </div>
     </Modal>
