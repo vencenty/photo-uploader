@@ -149,6 +149,82 @@ const StatusBadge = styled.span`
   }
 `;
 
+// 出血线样式 - 通过 CSS 注入到 react-easy-crop 的裁剪区域
+const CropContainerWithBleedLines = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  /* 满版样式时，在裁剪框内显示出血线 */
+  &.show-bleed-lines {
+    /* 定位到 react-easy-crop 的裁剪区域 */
+    .reactEasyCrop_CropArea {
+      /* 出血线边框 - 内部虚线边框表示安全区域 */
+      &::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        border: 2px dashed rgba(255, 255, 255, 0.9);
+        pointer-events: none;
+        z-index: 10;
+        box-shadow: 0 0 0 1px rgba(255, 0, 0, 0.5);
+      }
+
+      /* 四角斜线装饰 - 左上角 */
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 9;
+        background: 
+          /* 左上角斜线 */
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 0, 0, 0.5) 2px,
+            rgba(255, 0, 0, 0.5) 4px
+          ),
+          /* 右上角斜线 */
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 0, 0, 0.5) 2px,
+            rgba(255, 0, 0, 0.5) 4px
+          );
+        background-size: 8px 8px, 8px 8px;
+        background-position: 0 0, 100% 0;
+        /* 只在边缘8px范围内显示斜线 */
+        -webkit-mask-image: 
+          linear-gradient(to right, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px)),
+          linear-gradient(to bottom, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px));
+        -webkit-mask-composite: source-over;
+        mask-image: 
+          linear-gradient(to right, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px)),
+          linear-gradient(to bottom, black 8px, transparent 8px, transparent calc(100% - 8px), black calc(100% - 8px));
+        mask-composite: add;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    &.show-bleed-lines .reactEasyCrop_CropArea::before {
+      top: 6px;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+    }
+  }
+`;
+
 /**
  * 图片裁剪组件
  *
@@ -160,6 +236,7 @@ const StatusBadge = styled.span`
  * @param {function} props.onCropComplete 裁剪完成的回调，会传入裁剪后的图片Blob
  * @param {number} props.aspectRatio 裁剪比例（宽/高）
  * @param {boolean} props.isMobile 是否是移动设备
+ * @param {boolean} props.isFullVersion 是否是满版样式（满版时显示出血线提示）
  */
 const ImageCropper = memo(({
   image,
@@ -168,7 +245,8 @@ const ImageCropper = memo(({
   onClose,
   onCropComplete,
   aspectRatio = 4/3,
-  isMobile = false
+  isMobile = false,
+  isFullVersion = false
 }) => {
   // 裁剪区域状态
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -389,23 +467,25 @@ const ImageCropper = memo(({
             图片加载中...
           </div>
         )}
-        <ReactCrop
-          image={getProxiedImageUrl(image)}
-          crop={crop}
-          zoom={zoom}
-          aspect={currentAspectRatio}
-          onCropChange={debouncedCropChange}
-          onCropComplete={handleCropComplete}
-          onZoomChange={debouncedZoomChange}
-          onMediaLoaded={onMediaLoaded}
-          objectFit="contain"
-          showGrid={!isMobile}
-          style={{
-            containerStyle: {
-              backgroundColor: '#333'
-            }
-          }}
-        />
+        <CropContainerWithBleedLines className={isFullVersion ? 'show-bleed-lines' : ''}>
+          <ReactCrop
+            image={getProxiedImageUrl(image)}
+            crop={crop}
+            zoom={zoom}
+            aspect={currentAspectRatio}
+            onCropChange={debouncedCropChange}
+            onCropComplete={handleCropComplete}
+            onZoomChange={debouncedZoomChange}
+            onMediaLoaded={onMediaLoaded}
+            objectFit="contain"
+            showGrid={!isMobile}
+            style={{
+              containerStyle: {
+                backgroundColor: '#333'
+              }
+            }}
+          />
+        </CropContainerWithBleedLines>
       </StyledCropContainer>
 
       <ControlsContainer>

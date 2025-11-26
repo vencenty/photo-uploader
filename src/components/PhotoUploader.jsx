@@ -547,6 +547,7 @@ const PhotoUploader = memo(({
           onCropComplete={handleCropComplete}
           aspectRatio={aspectRatio}
           isMobile={isMobile}
+          isFullVersion={isFullVersionSize}
         />
       )}
       
